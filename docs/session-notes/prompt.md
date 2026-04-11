@@ -2,6 +2,7 @@
 
 请继续当前项目上下文，并优先参考以下文件：
 
+- `docs/session-notes/20260411_1_scaffold-and-connectivity-check.md`
 - `docs/session-notes/20260410_requirements-and-initialization-prep.md`
 - `docs/mvp-spec.zh-CN.md`
 - `docs/api-design.zh-CN.md`
@@ -60,12 +61,12 @@
 
 - 需求、技术栈、API 方向已经确认
 - 中英双语需求文档和 API 文档已经创建
-- `.gitignore` 已初步完善
-- 下一步应进入项目初始化阶段
-- 初始化根目录结构
-- 初始化 `client`
-- 初始化 `server`
-- 初始化 `Prisma`
+- `client` 和 `server` 已完成初始化
+- `Prisma + SQLite` 已完成初始化并生成第一版数据库
+- 后端 API 骨架已完成
+- 前端页面骨架已完成
+- 前后端最小联调已打通
+- 下一步应进入真实业务实现阶段
 
 本项目的首要目标是：
 
