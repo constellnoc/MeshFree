@@ -15,12 +15,45 @@ const port = Number(process.env.PORT) || 3001;
 const uploadsDir = path.resolve(__dirname, "..", "uploads");
 const coversDir = path.join(uploadsDir, "covers");
 const modelsDir = path.join(uploadsDir, "models");
+const isProduction = process.env.NODE_ENV === "production";
+
+function parseAllowedOrigins(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+}
+
+const defaultAllowedOrigins = isProduction
+  ? ["https://yukiho.site", "https://www.yukiho.site"]
+  : ["http://localhost:5173", "http://127.0.0.1:5173"];
+
+const allowedOrigins = parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS);
+
+if (allowedOrigins.size === 0) {
+  for (const origin of defaultAllowedOrigins) {
+    allowedOrigins.add(origin);
+  }
+}
 
 for (const directory of [uploadsDir, coversDir, modelsDir]) {
   fs.mkdirSync(directory, { recursive: true });
 }
 
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origin is not allowed by CORS."));
+    },
+  }),
+);
 app.use(express.json());
 app.use("/uploads", express.static(uploadsDir));
 

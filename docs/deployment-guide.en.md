@@ -390,6 +390,7 @@ The backend requires at least the following environment variables:
 - `JWT_SECRET`
 - `PORT`
 - `NODE_ENV`
+- `CORS_ALLOWED_ORIGINS`
 - `ADMIN_SEED_USERNAME`
 - `ADMIN_SEED_PASSWORD`
 
@@ -432,6 +433,23 @@ For production, use:
 ```text
 production
 ```
+
+#### `CORS_ALLOWED_ORIGINS`
+
+This is the list of frontend origins allowed to access the backend API in production.  
+Multiple origins should be separated by commas.
+
+For this project, the recommended production value is:
+
+```text
+https://yukiho.site,https://www.yukiho.site
+```
+
+Notes:
+
+- In development, the backend allows local `Vite` origins by default
+- In production, you should limit access to the real site domains only
+- If you do not tighten this value, the API will remain more exposed than necessary
 
 #### `ADMIN_SEED_USERNAME`
 
@@ -484,6 +502,7 @@ DATABASE_URL="file:./prisma/prod.db"
 JWT_SECRET="replace-this-with-a-random-high-entropy-string"
 PORT=3001
 NODE_ENV="production"
+CORS_ALLOWED_ORIGINS="https://yukiho.site,https://www.yukiho.site"
 ADMIN_SEED_USERNAME="mano"
 ADMIN_SEED_PASSWORD="replace-this-with-a-strong-password"
 ```

@@ -390,6 +390,7 @@ npx prisma generate
 - `JWT_SECRET`
 - `PORT`
 - `NODE_ENV`
+- `CORS_ALLOWED_ORIGINS`
 - `ADMIN_SEED_USERNAME`
 - `ADMIN_SEED_PASSWORD`
 
@@ -432,6 +433,23 @@ DATABASE_URL="file:./prisma/prod.db"
 ```text
 production
 ```
+
+#### `CORS_ALLOWED_ORIGINS`
+
+这是生产环境允许访问后端 API 的前端来源列表。  
+多个来源之间用英文逗号分隔。
+
+当前项目生产环境建议填写为：
+
+```text
+https://yukiho.site,https://www.yukiho.site
+```
+
+说明：
+
+- 开发环境下，后端会默认允许本地 `Vite` 地址
+- 生产环境下，建议只允许正式站点域名
+- 如果不收紧这个值，后端接口会比实际需要暴露得更宽
 
 #### `ADMIN_SEED_USERNAME`
 
@@ -484,6 +502,7 @@ DATABASE_URL="file:./prisma/prod.db"
 JWT_SECRET="请替换为随机生成的高强度字符串"
 PORT=3001
 NODE_ENV="production"
+CORS_ALLOWED_ORIGINS="https://yukiho.site,https://www.yukiho.site"
 ADMIN_SEED_USERNAME="mano"
 ADMIN_SEED_PASSWORD="请替换为你的强密码"
 ```
