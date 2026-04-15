@@ -649,6 +649,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name yukiho.site www.yukiho.site;
+    client_max_body_size 30m;
 
     root /var/www/meshfree/client/dist;
     index index.html;
@@ -676,6 +677,9 @@ server {
     }
 }
 ```
+
+The `client_max_body_size 30m;` line is important.  
+The submission endpoint allows ZIP and cover image uploads, and without an explicit limit here, the default Nginx request body limit can easily cause `413 Request Entity Too Large` errors in production.
 
 ### 17.2 Enable The Site
 

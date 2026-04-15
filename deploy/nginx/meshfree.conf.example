@@ -2,6 +2,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name yukiho.site www.yukiho.site;
+    client_max_body_size 30m;
 
     root /var/www/meshfree/client/dist;
     index index.html;

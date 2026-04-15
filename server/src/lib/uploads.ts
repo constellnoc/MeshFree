@@ -19,7 +19,14 @@ export function toPublicAssetUrl(filePath: string): string {
 }
 
 export function resolveUploadFilePath(filePath: string): string {
-  return path.resolve(uploadsDir, filePath);
+  const absoluteFilePath = path.resolve(uploadsDir, filePath);
+  const relativePath = path.relative(uploadsDir, absoluteFilePath);
+
+  if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error("Upload file path must stay inside the uploads directory.");
+  }
+
+  return absoluteFilePath;
 }
 
 export function toRelativeUploadPath(absoluteFilePath: string): string {

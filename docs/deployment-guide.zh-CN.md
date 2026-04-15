@@ -649,6 +649,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name yukiho.site www.yukiho.site;
+    client_max_body_size 30m;
 
     root /var/www/meshfree/client/dist;
     index index.html;
@@ -676,6 +677,9 @@ server {
     }
 }
 ```
+
+这里的 `client_max_body_size 30m;` 很重要。  
+因为当前投稿接口允许上传 ZIP 和封面图，如果不显式调大这个值，Nginx 默认请求体限制可能会直接导致上传返回 `413 Request Entity Too Large`。
 
 ### 17.2 启用站点
 
