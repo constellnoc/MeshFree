@@ -304,6 +304,127 @@ button {
   color: #dcfce7;
 }
 
+.admin-grid {
+  grid-template-columns: minmax(320px, 1fr) minmax(340px, 1.1fr);
+  align-items: start;
+}
+
+.admin-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.admin-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.admin-filter {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.admin-filter-active {
+  background: #2563eb;
+  color: #eff6ff;
+  border-color: transparent;
+}
+
+.admin-submission-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-submission-item {
+  text-align: left;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.82);
+  color: inherit;
+  cursor: pointer;
+}
+
+.admin-submission-item-active {
+  border-color: rgba(96, 165, 250, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.25);
+}
+
+.admin-submission-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.admin-submission-meta {
+  margin-bottom: 0;
+  color: #93c5fd;
+  font-size: 0.92rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-pending {
+  background: rgba(250, 204, 21, 0.18);
+  color: #fde68a;
+}
+
+.status-approved {
+  background: rgba(74, 222, 128, 0.18);
+  color: #bbf7d0;
+}
+
+.status-rejected {
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+}
+
+.admin-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-detail-cover {
+  width: 100%;
+  border-radius: 16px;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #0b1120;
+}
+
+.admin-detail-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-detail-meta p {
+  margin-bottom: 0;
+}
+
+.destructive-button {
+  background: rgba(127, 29, 29, 0.55);
+  color: #fee2e2;
+}
+
 pre {
   margin: 0;
   padding: 16px;
@@ -330,5 +451,13 @@ pre {
 
   .submit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-toolbar {
+    flex-direction: column;
   }
 }

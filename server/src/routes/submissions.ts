@@ -3,6 +3,7 @@ import path from "path";
 import { Router } from "express";
 
 import prisma from "../lib/prisma";
+import { toRelativeUploadPath } from "../lib/uploads";
 import { uploadSubmissionFiles } from "../middleware/upload";
 
 const router = Router();
@@ -18,16 +19,6 @@ type UploadedSubmissionFiles = {
 
 function trimTextField(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function toRelativeUploadPath(absoluteFilePath: string): string {
-  const normalizedPath = absoluteFilePath.replace(/\\/g, "/");
-
-  if (normalizedPath.includes("/uploads/covers/")) {
-    return `covers/${path.basename(normalizedPath)}`;
-  }
-
-  return `models/${path.basename(normalizedPath)}`;
 }
 
 function removeUploadedFiles(files: Array<Express.Multer.File | undefined>) {

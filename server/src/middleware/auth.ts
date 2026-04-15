@@ -1,8 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
+interface AdminJwtPayload extends JwtPayload {
+  role?: string;
+  username?: string;
+  adminId?: number;
+}
+
 export interface AuthenticatedRequest extends Request {
-  user?: string | JwtPayload;
+  user?: AdminJwtPayload;
 }
 
 export const authMiddleware = (
@@ -30,11 +36,20 @@ export const authMiddleware = (
   }
 
   try {
-    req.user = jwt.verify(token, jwtSecret);
+    const decodedToken = jwt.verify(token, jwtSecret);
+
+    if (typeof decodedToken === "string" || decodedToken.role !== "admin") {
+      res.status(401).json({
+        message: "Unauthorized.",
+      });
+      return;
+    }
+
+    req.user = decodedToken;
     next();
   } catch {
     res.status(401).json({
-      message: "Invalid token",
+      message: "Unauthorized.",
     });
   }
 };

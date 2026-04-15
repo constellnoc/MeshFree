@@ -1,31 +1,15 @@
 import fs from "fs";
-import path from "path";
 import { Router } from "express";
 
 import prisma from "../lib/prisma";
+import {
+  getStoredFileName,
+  parseSubmissionId,
+  resolveUploadFilePath,
+  toPublicAssetUrl,
+} from "../lib/uploads";
 
 const router = Router();
-
-const uploadsDir = path.resolve(__dirname, "..", "..", "uploads");
-
-function parseSubmissionId(id: string): number | null {
-  const parsedId = Number(id);
-
-  if (!Number.isInteger(parsedId) || parsedId <= 0) {
-    return null;
-  }
-
-  return parsedId;
-}
-
-function toPublicAssetUrl(filePath: string): string {
-  const normalizedPath = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
-  return `/uploads/${normalizedPath}`;
-}
-
-function resolveUploadFilePath(filePath: string): string {
-  return path.resolve(uploadsDir, filePath);
-}
 
 function toModelSummary(submission: {
   id: number;
@@ -134,7 +118,7 @@ router.get("/:id/download", async (req, res) => {
     return;
   }
 
-  const downloadName = path.basename(submission.modelZipPath) || `${submission.title}.zip`;
+  const downloadName = getStoredFileName(submission.modelZipPath) || `${submission.title}.zip`;
   res.download(absoluteZipPath, downloadName);
 });
 

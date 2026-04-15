@@ -1,77 +1,345 @@
+import bcrypt from "bcryptjs";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 
+import prisma from "../lib/prisma";
+import {
+  getStoredFileName,
+  parseSubmissionId,
+  removeUploadFile,
+  toPublicAssetUrl,
+} from "../lib/uploads";
 import { authMiddleware } from "../middleware/auth";
 
 const router = Router();
+const allowedStatuses = new Set(["pending", "approved", "rejected"]);
 
-router.post("/login", (_req, res) => {
+function trimTextField(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function toAdminSubmissionSummary(submission: {
+  id: number;
+  title: string;
+  description: string;
+  contact: string;
+  coverImagePath: string;
+  status: "pending" | "approved" | "rejected";
+  rejectReason: string | null;
+  createdAt: Date;
+  reviewedAt: Date | null;
+}) {
+  return {
+    id: submission.id,
+    title: submission.title,
+    description: submission.description,
+    contact: submission.contact,
+    coverImageUrl: toPublicAssetUrl(submission.coverImagePath),
+    status: submission.status,
+    rejectReason: submission.rejectReason,
+    createdAt: submission.createdAt.toISOString(),
+    reviewedAt: submission.reviewedAt?.toISOString() ?? null,
+  };
+}
+
+function toAdminSubmissionDetail(submission: {
+  id: number;
+  title: string;
+  description: string;
+  contact: string;
+  coverImagePath: string;
+  modelZipPath: string;
+  status: "pending" | "approved" | "rejected";
+  rejectReason: string | null;
+  createdAt: Date;
+  reviewedAt: Date | null;
+}) {
+  return {
+    ...toAdminSubmissionSummary(submission),
+    modelZipName: getStoredFileName(submission.modelZipPath),
+  };
+}
+
+router.post("/login", async (req, res) => {
+  const username = trimTextField(req.body.username);
+  const password = trimTextField(req.body.password);
   const jwtSecret = process.env.JWT_SECRET;
 
-  if (!jwtSecret) {
-    res.status(500).json({
-      message: "JWT secret is not configured",
+  if (!username || !password) {
+    res.status(400).json({
+      message: "Invalid request data.",
     });
     return;
   }
 
-  const token = jwt.sign({ role: "admin", username: "admin" }, jwtSecret, {
-    expiresIn: "1h",
+  if (!jwtSecret) {
+    res.status(500).json({
+      message: "JWT secret is not configured.",
+    });
+    return;
+  }
+
+  const admin = await prisma.admin.findUnique({
+    where: {
+      username,
+    },
   });
 
+  if (!admin) {
+    res.status(401).json({
+      message: "Invalid username or password.",
+    });
+    return;
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, admin.passwordHash);
+
+  if (!isPasswordValid) {
+    res.status(401).json({
+      message: "Invalid username or password.",
+    });
+    return;
+  }
+
+  const token = jwt.sign(
+    { role: "admin", username: admin.username, adminId: admin.id },
+    jwtSecret,
+    {
+      expiresIn: "1h",
+    },
+  );
+
   res.json({
-    route: "POST /api/admin/login",
-    message: "Admin login endpoint placeholder",
+    message: "Login successful.",
     token,
   });
 });
 
 router.use(authMiddleware);
 
-router.get("/submissions", (_req, res) => {
+router.get("/submissions", async (req, res) => {
+  const status = trimTextField(req.query.status);
+
+  if (status && !allowedStatuses.has(status)) {
+    res.status(400).json({
+      message: "Invalid request data.",
+    });
+    return;
+  }
+
+  const submissions = await prisma.submission.findMany({
+    where: status
+      ? {
+          status: status as "pending" | "approved" | "rejected",
+        }
+      : undefined,
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      contact: true,
+      coverImagePath: true,
+      status: true,
+      rejectReason: true,
+      createdAt: true,
+      reviewedAt: true,
+    },
+  });
+
+  res.json(submissions.map(toAdminSubmissionSummary));
+});
+
+router.get("/submissions/:id", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      contact: true,
+      coverImagePath: true,
+      modelZipPath: true,
+      status: true,
+      rejectReason: true,
+      createdAt: true,
+      reviewedAt: true,
+    },
+  });
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  res.json(toAdminSubmissionDetail(submission));
+});
+
+router.patch("/submissions/:id/approve", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      status: true,
+    },
+  });
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  if (submission.status !== "pending") {
+    res.status(400).json({
+      message: "Only pending submissions can be reviewed.",
+    });
+    return;
+  }
+
+  await prisma.submission.update({
+    where: {
+      id: submissionId,
+    },
+    data: {
+      status: "approved",
+      rejectReason: null,
+      reviewedAt: new Date(),
+    },
+  });
+
   res.json({
-    route: "GET /api/admin/submissions",
-    message: "Admin submissions list endpoint placeholder",
+    message: "Submission approved successfully.",
   });
 });
 
-router.get("/submissions/:id", (req, res) => {
-  res.json({
-    route: "GET /api/admin/submissions/:id",
-    message: "Admin submission detail endpoint placeholder",
-    params: {
-      id: req.params.id,
+router.patch("/submissions/:id/reject", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+  const rejectReason = trimTextField(req.body.rejectReason);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  if (!rejectReason) {
+    res.status(400).json({
+      message: "Invalid request data.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
     },
+    select: {
+      status: true,
+    },
+  });
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  if (submission.status !== "pending") {
+    res.status(400).json({
+      message: "Only pending submissions can be reviewed.",
+    });
+    return;
+  }
+
+  await prisma.submission.update({
+    where: {
+      id: submissionId,
+    },
+    data: {
+      status: "rejected",
+      rejectReason,
+      reviewedAt: new Date(),
+    },
+  });
+
+  res.json({
+    message: "Submission rejected successfully.",
   });
 });
 
-router.patch("/submissions/:id/approve", (req, res) => {
-  res.json({
-    route: "PATCH /api/admin/submissions/:id/approve",
-    message: "Admin approve submission endpoint placeholder",
-    params: {
-      id: req.params.id,
+router.delete("/submissions/:id", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      coverImagePath: true,
+      modelZipPath: true,
     },
   });
-});
 
-router.patch("/submissions/:id/reject", (req, res) => {
-  res.json({
-    route: "PATCH /api/admin/submissions/:id/reject",
-    message: "Admin reject submission endpoint placeholder",
-    params: {
-      id: req.params.id,
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  await prisma.submission.delete({
+    where: {
+      id: submissionId,
     },
   });
-});
 
-router.delete("/submissions/:id", (req, res) => {
+  for (const filePath of [submission.coverImagePath, submission.modelZipPath]) {
+    try {
+      removeUploadFile(filePath);
+    } catch (error) {
+      console.error(`Failed to remove file after deleting submission: ${filePath}`);
+      console.error(error);
+    }
+  }
+
   res.json({
-    route: "DELETE /api/admin/submissions/:id",
-    message: "Admin delete submission endpoint placeholder",
-    params: {
-      id: req.params.id,
-    },
+    message: "Submission deleted successfully.",
   });
 });
 
