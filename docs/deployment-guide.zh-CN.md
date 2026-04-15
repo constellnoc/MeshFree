@@ -578,8 +578,12 @@ cd /var/www/meshfree/server
 启动后端：
 
 ```bash
-pm2 start dist/index.js --name meshfree-server
+pm2 start ecosystem.config.cjs
 ```
+
+这样会直接读取仓库中的 PM2 配置文件：
+
+- `server/ecosystem.config.cjs`
 
 查看状态：
 
@@ -630,6 +634,12 @@ pm2 save
 ```bash
 sudo nano /etc/nginx/sites-available/meshfree
 ```
+
+仓库里已经提供了可参考的 Nginx 模板文件：
+
+- `deploy/nginx/meshfree.conf.example`
+
+第一次部署时，你可以把这个模板作为起点，而不是从文档里手动抄写。
 
 可以先使用 HTTP 版本的基础配置，后续再通过 `Certbot` 自动接入 HTTPS：
 

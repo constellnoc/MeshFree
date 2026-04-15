@@ -578,8 +578,12 @@ cd /var/www/meshfree/server
 Start the backend:
 
 ```bash
-pm2 start dist/index.js --name meshfree-server
+pm2 start ecosystem.config.cjs
 ```
+
+This directly uses the PM2 config file stored in the repository:
+
+- `server/ecosystem.config.cjs`
 
 Check status:
 
@@ -630,6 +634,12 @@ Create a site config file:
 ```bash
 sudo nano /etc/nginx/sites-available/meshfree
 ```
+
+The repository already includes a reusable Nginx template file:
+
+- `deploy/nginx/meshfree.conf.example`
+
+For a first deployment, you can use that template as the starting point instead of manually copying the config from the document.
 
 You can start with a plain HTTP version first, then let `Certbot` attach HTTPS automatically later:
 
