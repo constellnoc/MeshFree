@@ -1,30 +1,90 @@
 # MeshFree
 
-A lightweight model upload and download website for MVP demonstration.
+`MeshFree` is a lightweight model upload and download website built for MVP demonstration.
+
+The current repository already includes the three core MVP loops:
+
+- Public model browsing and detail view
+- Public ZIP download
+- Public submission with file upload
+- Admin login and submission review
+
+## Current Status
+
+The project is no longer only in initialization.
+
+Current status:
+
+- `client` and `server` scaffolding completed
+- `Prisma + SQLite` connected and working
+- Public model list/detail/download flow connected to real data
+- Public submission flow connected to real upload and database logic
+- Admin login and review flow connected to real database and JWT auth
+- Chinese and English MVP / API documents completed
+- Chinese and English deployment guides completed
 
 ## Tech Stack
 
-- React
-- TypeScript
-- Vite
-- Node.js
-- Express
-- Prisma
-- SQLite
+- Frontend: `React + TypeScript + Vite`
+- Backend: `Node.js + Express + TypeScript`
+- Database: `SQLite`
+- ORM: `Prisma`
+- Process manager: `PM2`
+- Reverse proxy: `Nginx`
 
-## Features
+## MVP Features
 
-- Public model browsing
-- Public model download
-- Public submission
-- Admin review system
+- Public home page for approved models
+- Public model detail page
+- Public ZIP download
+- Public submission form with cover image and ZIP upload
+- Single-admin login
+- Admin submission review, reject, approve, and delete
 
 ## Project Structure
 
-- `client/` frontend
-- `server/` backend
-- `docs/` project documents
+- `client/`: frontend application
+- `server/`: backend application
+- `docs/`: specifications, API documents, deployment guides, and session notes
 
-## Status
+## Documentation
 
-Project initialization in progress.
+Core documents:
+
+- Chinese MVP spec: `docs/mvp-spec.zh-CN.md`
+- English MVP spec: `docs/mvp-spec.en.md`
+- Chinese API design: `docs/api-design.zh-CN.md`
+- English API design: `docs/api-design.en.md`
+
+Deployment guides:
+
+- Chinese deployment guide: `docs/deployment-guide.zh-CN.md`
+- English deployment guide: `docs/deployment-guide.en.md`
+
+Progress notes:
+
+- Session notes are stored in `docs/session-notes/`
+
+## Deployment Summary
+
+The current deployment plan is based on:
+
+- `Ubuntu 22.04`
+- `Node.js 20 LTS`
+- `PM2`
+- `Nginx`
+- `SQLite`
+- local uploads
+- primary domain `yukiho.site`
+
+The detailed production steps are documented in:
+
+- `docs/deployment-guide.zh-CN.md`
+- `docs/deployment-guide.en.md`
+
+## Notes
+
+- Do not commit `.env`
+- Do not commit real admin passwords
+- Do not commit `JWT_SECRET`
+- Do not commit database files or uploaded files
