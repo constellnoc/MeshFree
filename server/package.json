@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:seed": "prisma db seed",
+    "admin:manage": "ts-node src/scripts/manageAdmin.ts",
     "demo:public-models": "ts-node src/scripts/setupDemoPublicModels.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

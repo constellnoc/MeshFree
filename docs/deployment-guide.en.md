@@ -548,6 +548,7 @@ Notes:
 
 - In this document, seed is treated as a **first-time initialization tool**
 - It is not recommended to use it repeatedly as a day-to-day admin maintenance command
+- If you later need to manually create an admin or reset an admin password, prefer `npm run admin:manage`
 
 ## 14. Build Frontend And Backend
 
@@ -870,6 +871,26 @@ pm2 logs meshfree-server
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+### 21.7 Manually Create Or Reset An Admin Account
+
+If you later need to manually create an admin account or reset the password for `mano`, use the dedicated script instead of rerunning seed:
+
+```bash
+cd /var/www/meshfree/server
+ADMIN_MANAGE_USERNAME="mano" ADMIN_MANAGE_PASSWORD="your-new-strong-password" npm run admin:manage
+```
+
+This script behaves as follows:
+
+- If the username does not exist, it creates the admin account
+- If the username already exists, it only updates the password hash
+
+Notes:
+
+- This is intended as a one-time maintenance command, so do not keep the password in `.env` permanently just for this operation
+- It is better suited for account recovery or password reset scenarios
+- After execution, avoid exposing the command contents in shared environments and clean up shell history if needed
 
 ## 22. Common Troubleshooting
 

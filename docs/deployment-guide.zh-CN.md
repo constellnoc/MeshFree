@@ -548,6 +548,7 @@ npm run db:seed
 
 - 本文档将 seed 定义为**首次初始化工具**
 - 不建议把它当作日常管理员维护命令反复执行
+- 如果后续要手动创建管理员或重置管理员密码，优先使用 `npm run admin:manage`
 
 ## 14. 构建前后端
 
@@ -870,6 +871,26 @@ pm2 logs meshfree-server
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+### 21.7 手动创建或重置管理员账号
+
+如果后续需要手动创建管理员，或者重置 `mano` 的密码，建议使用专用脚本，而不是重复执行 seed：
+
+```bash
+cd /var/www/meshfree/server
+ADMIN_MANAGE_USERNAME="mano" ADMIN_MANAGE_PASSWORD="your-new-strong-password" npm run admin:manage
+```
+
+这个脚本的行为是：
+
+- 如果该用户名不存在，则创建管理员账号
+- 如果该用户名已存在，则只更新密码哈希
+
+说明：
+
+- 这是一个一次性维护命令，不建议把密码长期写进 `.env`
+- 更适合在需要修复账号、重置密码时临时执行
+- 执行完成后，建议清理终端历史或避免在共享环境中暴露命令内容
 
 ## 22. 常见故障排查
 
