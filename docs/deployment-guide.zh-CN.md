@@ -29,6 +29,21 @@
 - 自动化 CI/CD
 - 数据库备份方案
 
+## 1.1 阅读方式建议
+
+如果你是第一次搭建网站，建议不要一边跳着看一边操作，而是按下面的顺序整体执行：
+
+1. 先完成服务器初始化和安全加固
+2. 再完成域名解析
+3. 再安装 Node.js、Nginx、PM2 等运行环境
+4. 再拉取代码、安装依赖、配置 `.env`
+5. 再执行 Prisma、seed、前后端构建
+6. 再启动 PM2 和配置 Nginx
+7. 最后申请 HTTPS 并做整站验证
+
+如果你在某一步卡住，不建议继续往后跳。  
+对于第一次部署，最稳妥的方式是“前一步确认成功，再做下一步”。
+
 ## 2. 部署架构概览
 
 本项目生产环境的部署结构如下：
@@ -106,6 +121,17 @@
 ssh root@<你的服务器公网IP>
 ```
 
+如果你使用的是 `Xshell`，本节命令本身**不需要改**，只是连接方式从“命令行发起 SSH”变成“在 Xshell 图形界面新建会话”：
+
+- 协议选择 `SSH`
+- 主机填写服务器公网 IP
+- 端口填写 `22`
+- 用户名填写 `root`
+- 身份验证方式选择密码登录
+
+后面文档里所有命令，仍然都是在 Xshell 连接成功后的终端里直接执行。  
+也就是说：**Xshell 只是你打开远程终端的工具，不会改变 Ubuntu 里的命令本身。**
+
 首次登录只用于初始化服务器环境。后续应尽快创建普通运维用户并禁用 `root` 远程登录。
 
 ### 5.2 更新系统软件包
@@ -138,6 +164,15 @@ sudo whoami
 ```
 
 如果输出是 `root`，说明 `koito` 的 `sudo` 权限已生效。
+
+如果你使用 `Xshell`，建议这里不要直接关闭当前 `root` 会话，而是：
+
+- 保留当前 `root` 会话窗口不动
+- 新开一个 Xshell 标签页或新建一个会话
+- 用 `koito` 和刚设置的密码重新登录一次
+- 在新会话里执行 `sudo whoami`
+
+这样即使新用户登录失败，你也还有一个已登录的 `root` 会话可以修复配置。
 
 ### 5.5 限制 SSH 登录策略
 
@@ -173,6 +208,24 @@ sudo systemctl restart ssh
 
 - **先确认 `koito` 能成功 SSH 登录后，再断开 `root` 会话**
 - 否则可能把自己锁在服务器外面
+
+### 5.6 从这一步开始默认使用 koito
+
+从完成 SSH 加固开始，除非文档中明确写着 `root`，后续操作默认都使用 `koito` 登录后执行。
+
+换句话说，后面你在 Xshell 里常用的登录方式应变为：
+
+```bash
+ssh koito@<你的服务器公网IP>
+```
+
+如果你在 Xshell 中操作，则等价于：
+
+- 协议：`SSH`
+- 主机：服务器公网 IP
+- 端口：`22`
+- 用户名：`koito`
+- 身份验证：密码
 
 ## 6. 防火墙与基础防护
 
@@ -265,6 +318,13 @@ ping www.yukiho.site
 
 如果解析刚添加，可能需要等待一段时间才会完全生效。
 
+如果你在域名控制台里还不熟悉记录填写方式，可以这样理解：
+
+- 主机记录填 `@`，表示裸域名 `yukiho.site`
+- 主机记录填 `www`，表示 `www.yukiho.site`
+- 记录类型选 `A`
+- 记录值填写你的服务器公网 IPv4
+
 ## 9. 获取项目代码
 
 切换到计划部署目录的父目录：
@@ -289,6 +349,12 @@ cd /var/www/meshfree
 
 因为仓库是 `public`，所以这里不需要额外配置私库认证。
 
+如果你不确定仓库地址怎么写，GitHub 上常见的 HTTPS 公开仓库地址格式通常是：
+
+```text
+https://github.com/<你的用户名>/<你的仓库名>.git
+```
+
 ## 10. 安装项目依赖
 
 ### 10.1 安装后端依赖
@@ -304,6 +370,17 @@ npm install
 cd /var/www/meshfree/client
 npm install
 ```
+
+### 10.3 生成 Prisma Client
+
+由于本项目使用 Prisma，第一次在新服务器部署时，建议显式执行一次：
+
+```bash
+cd /var/www/meshfree/server
+npx prisma generate
+```
+
+这样可以避免后续 `build` 或启动阶段因 Prisma Client 未生成而报错。
 
 ## 11. 环境变量配置
 
@@ -322,6 +399,20 @@ npm install
 
 这是 Prisma 连接数据库时使用的地址。  
 当前项目使用 `SQLite`，因此通常会指向一个本地文件。
+
+如果使用下面这条配置：
+
+```env
+DATABASE_URL="file:./prisma/prod.db"
+```
+
+那么数据库文件最终会位于：
+
+```text
+/var/www/meshfree/server/prisma/prod.db
+```
+
+这能帮助你明确知道：数据库文件并不在系统其他神秘位置，而是在项目后端目录下的 `prisma` 目录里。
 
 #### `JWT_SECRET`
 
@@ -436,6 +527,7 @@ ADMIN_SEED_PASSWORD="你的强密码"
 
 ```bash
 cd /var/www/meshfree/server
+npx prisma generate
 npx prisma migrate deploy
 ```
 
@@ -502,6 +594,14 @@ pm2 logs meshfree-server
 pm2 startup
 pm2 save
 ```
+
+注意：
+
+- `pm2 startup` 执行后，通常会额外输出一条需要 `sudo` 执行的命令
+- 你需要把那条输出的完整命令再复制执行一次
+- 最后再执行 `pm2 save`
+
+这是 PM2 把当前进程列表注册为系统启动项的正常步骤，不是报错。
 
 说明：
 
@@ -574,6 +674,14 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+到这一步之后，建议先在浏览器中访问：
+
+- `http://yukiho.site`
+- `http://www.yukiho.site`
+
+确认至少能打开前端页面，再继续申请 HTTPS。  
+如果这里就打不开，不要直接继续执行 `Certbot`，应先排查 DNS、Nginx 和前端构建产物。
+
 如果默认站点会冲突，可以删除：
 
 ```bash
@@ -602,11 +710,26 @@ sudo certbot --nginx -d yukiho.site -d www.yukiho.site
 - 验证域名是否已解析到当前服务器
 - 自动尝试修改 Nginx 配置
 
+第一次执行时，如果 Certbot 询问是否将 HTTP 自动跳转到 HTTPS，建议选择“重定向”。
+
 如果成功，后续应实现以下规则：
 
 - `http://yukiho.site` 跳转到 `https://yukiho.site`
 - `http://www.yukiho.site` 跳转到 `https://yukiho.site`
 - `https://www.yukiho.site` 跳转到 `https://yukiho.site`
+
+注意：
+
+- Certbot 很擅长帮你接入 HTTPS
+- 但它**不一定会完全按你想要的主域名策略自动整理配置**
+- 因此申请成功后，仍要手动验证 `www` 是否真的跳到了裸域名
+
+如果你发现：
+
+- `https://www.yukiho.site` 没有跳到 `https://yukiho.site`
+- 或者 `www` 和裸域名都各自能打开页面
+
+那么就说明还需要手动调整 Nginx，把 `www` 服务器块改成专门的跳转入口。
 
 ### 18.3 为什么 www 也要申请证书
 
@@ -646,6 +769,8 @@ ls -la /var/www/meshfree/server/uploads
 
 请至少完成以下验证：
 
+建议验证时不要只“打开看一眼”，而是每项都明确判断“成功”还是“失败”，这样后面排错更容易。
+
 ### 20.1 基础服务验证
 
 - `pm2 status` 显示后端进程在线
@@ -683,6 +808,24 @@ ls -la /var/www/meshfree/server/uploads
 ```bash
 cd /var/www/meshfree
 git pull
+```
+
+如果本次更新包含后端依赖、Prisma 变更或前端资源变更，通常完整更新流程应是：
+
+```bash
+cd /var/www/meshfree/server
+npm install
+npx prisma generate
+npx prisma migrate deploy
+npm run build
+
+cd /var/www/meshfree/client
+npm install
+npm run build
+
+pm2 restart meshfree-server
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
 ### 21.2 重装依赖
@@ -777,6 +920,17 @@ sudo systemctl reload nginx
 - 如果怀疑 `JWT_SECRET` 泄露，应立即更换并重新部署
 - 不要把数据库文件和上传文件提交到 Git
 - 后续如果进入更长期使用阶段，再补数据库备份与恢复方案
+
+## 24. 给第一次搭站者的额外提醒
+
+如果你是第一次搭建网站，下面这些“看起来很小”的习惯会明显减少出错概率：
+
+- 每执行完一段命令，就看一眼终端输出，不要连续粘贴十几条命令后才统一检查
+- 每次改完配置文件，都先执行对应的检查命令，例如 `sudo nginx -t`
+- 不确定当前在哪个目录时，先执行 `pwd`
+- 不确定当前是谁在执行命令时，先执行 `whoami`
+- 每改完一个重要配置，就先做一次小验证，不要等全部做完才检查
+- 对第一次部署来说，保留一个可用的旧连接窗口，通常比“全关了重新连”更安全
 
 ## 附录 A：后端环境变量模板
 
