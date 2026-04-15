@@ -966,6 +966,11 @@ Check first:
 
 The current deployment is already more secure than allowing long-term remote password login directly as `root`, but there is still room for stronger hardening.
 
+The backend also now includes two basic rate limits:
+
+- Rate limiting for the admin login endpoint
+- Rate limiting for the public submission endpoint
+
 Suggested future improvements:
 
 - Upgrade SSH login from password-based login to key-only login

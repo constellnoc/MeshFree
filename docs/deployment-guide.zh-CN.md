@@ -966,6 +966,11 @@ ADMIN_MANAGE_USERNAME="mano" ADMIN_MANAGE_PASSWORD="your-new-strong-password" np
 
 当前方案已经比“直接让 root 使用密码长期远程登录”更安全，但仍有进一步加强空间。
 
+当前后端还包含两处基础限流：
+
+- 管理员登录接口有限流
+- 公开投稿接口有限流
+
 后续建议：
 
 - 将 SSH 登录从“密码登录”升级为“仅密钥登录”

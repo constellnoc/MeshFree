@@ -38,6 +38,8 @@ if (allowedOrigins.size === 0) {
   }
 }
 
+app.set("trust proxy", 1);
+
 for (const directory of [uploadsDir, coversDir, modelsDir]) {
   fs.mkdirSync(directory, { recursive: true });
 }

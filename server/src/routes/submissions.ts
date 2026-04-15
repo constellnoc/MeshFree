@@ -4,6 +4,7 @@ import { Router } from "express";
 
 import prisma from "../lib/prisma";
 import { toRelativeUploadPath } from "../lib/uploads";
+import { createRateLimitMiddleware } from "../middleware/rateLimit";
 import { uploadSubmissionFiles } from "../middleware/upload";
 
 const router = Router();
@@ -11,6 +12,11 @@ const router = Router();
 const maxCoverSize = 2 * 1024 * 1024;
 const maxModelZipSize = 20 * 1024 * 1024;
 const allowedCoverExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const submissionRateLimit = createRateLimitMiddleware({
+  windowMs: 10 * 60 * 1000,
+  maxRequests: 3,
+  message: "Too many submission attempts. Please try again later.",
+});
 
 type UploadedSubmissionFiles = {
   cover?: Express.Multer.File[];
@@ -42,7 +48,7 @@ function isValidZipFile(file: Express.Multer.File): boolean {
   return path.extname(file.originalname).toLowerCase() === ".zip";
 }
 
-router.post("/", uploadSubmissionFiles, async (req, res) => {
+router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) => {
   const { cover = [], modelZip = [] } = req.files as UploadedSubmissionFiles;
   const coverFile = cover[0];
   const modelZipFile = modelZip[0];

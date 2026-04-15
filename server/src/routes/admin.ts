@@ -10,9 +10,15 @@ import {
   toPublicAssetUrl,
 } from "../lib/uploads";
 import { authMiddleware } from "../middleware/auth";
+import { createRateLimitMiddleware } from "../middleware/rateLimit";
 
 const router = Router();
 const allowedStatuses = new Set(["pending", "approved", "rejected"]);
+const adminLoginRateLimit = createRateLimitMiddleware({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+  message: "Too many login attempts. Please try again later.",
+});
 
 function trimTextField(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -60,7 +66,7 @@ function toAdminSubmissionDetail(submission: {
   };
 }
 
-router.post("/login", async (req, res) => {
+router.post("/login", adminLoginRateLimit, async (req, res) => {
   const username = trimTextField(req.body.username);
   const password = trimTextField(req.body.password);
   const jwtSecret = process.env.JWT_SECRET;
