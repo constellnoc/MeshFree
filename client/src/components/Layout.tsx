@@ -13,7 +13,7 @@ export function Layout() {
       <header className="app-header">
         <div>
           <p className="eyebrow">MeshFree MVP</p>
-          <h1>Frontend Skeleton</h1>
+          <h1>Public Model Gallery</h1>
         </div>
         <nav className="app-nav">
           {navItems.map((item) => (
