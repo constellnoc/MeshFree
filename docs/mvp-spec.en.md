@@ -212,6 +212,17 @@ Because of these limits, the MVP should:
 - Avoid complex infrastructure
 - Prioritize stability over advanced features
 
+### Public Deployment Baseline Constraints
+
+At the current MVP stage, public deployment should also follow these baseline constraints:
+
+- Frontend and backend should preferably be deployed under the same domain, with `Nginx` as the unified entry point
+- Production `CORS` should be restricted so that only the real site domains can access the backend API
+- The admin login endpoint should have basic rate limiting
+- The public submission endpoint should have basic rate limiting
+
+These constraints are not feature expansion. They are baseline safeguards to help the current MVP run more safely on the public internet.
+
 ## 15. Product Goal
 
 This MVP is not intended to be a large production platform.

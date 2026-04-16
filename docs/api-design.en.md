@@ -29,6 +29,15 @@ Admin endpoints must include a valid token.
 
 The public submission endpoint uses `multipart/form-data`.
 
+### Basic Rate Limiting
+
+To reduce brute-force attempts and abuse after public deployment, the current implementation applies basic rate limiting to:
+
+- `POST /api/admin/login`
+- `POST /api/submissions`
+
+When a request is rate limited, the API returns `429`.
+
 ## 3. Public API
 
 ### 3.1 Get Approved Model List
@@ -193,6 +202,14 @@ Public
 }
 ```
 
+**Rate Limit Response Example**
+
+```json
+{
+  "message": "Too many submission attempts. Please try again later."
+}
+```
+
 ## 4. Admin API
 
 ### 4.1 Admin Login
@@ -213,7 +230,7 @@ Public
 
 ```json
 {
-  "username": "admin",
+  "username": "your-admin-username",
   "password": "your-password"
 }
 ```
@@ -232,6 +249,14 @@ Public
 ```json
 {
   "message": "Invalid username or password."
+}
+```
+
+**Rate Limit Response Example**
+
+```json
+{
+  "message": "Too many login attempts. Please try again later."
 }
 ```
 
@@ -461,6 +486,18 @@ Examples:
 ```json
 {
   "message": "Invalid request data."
+}
+```
+
+```json
+{
+  "message": "Too many login attempts. Please try again later."
+}
+```
+
+```json
+{
+  "message": "Too many submission attempts. Please try again later."
 }
 ```
 

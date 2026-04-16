@@ -29,6 +29,15 @@
 
 投稿上传接口使用 `multipart/form-data`。
 
+### 基础限流
+
+为了降低公网部署后的暴力尝试和滥用风险，当前实现对以下接口加入了基础限流：
+
+- `POST /api/admin/login`
+- `POST /api/submissions`
+
+当触发限流时，接口会返回 `429`。
+
 ## 3. 公开接口
 
 ### 3.1 获取已发布模型列表
@@ -193,6 +202,14 @@
 }
 ```
 
+**限流响应示例**
+
+```json
+{
+  "message": "Too many submission attempts. Please try again later."
+}
+```
+
 ## 4. 管理员接口
 
 ### 4.1 管理员登录
@@ -213,7 +230,7 @@
 
 ```json
 {
-  "username": "admin",
+  "username": "your-admin-username",
   "password": "your-password"
 }
 ```
@@ -232,6 +249,14 @@
 ```json
 {
   "message": "Invalid username or password."
+}
+```
+
+**限流响应示例**
+
+```json
+{
+  "message": "Too many login attempts. Please try again later."
 }
 ```
 
@@ -461,6 +486,18 @@
 ```json
 {
   "message": "Invalid request data."
+}
+```
+
+```json
+{
+  "message": "Too many login attempts. Please try again later."
+}
+```
+
+```json
+{
+  "message": "Too many submission attempts. Please try again later."
 }
 ```
 
