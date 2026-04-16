@@ -22,6 +22,8 @@ Current status:
 - Admin login and review flow connected to real database and JWT auth
 - Chinese and English MVP / API documents completed
 - Chinese and English deployment guides completed
+- Real server deployment completed
+- Current basic testing has not revealed obvious problems
 
 ## Tech Stack
 
@@ -67,7 +69,7 @@ Progress notes:
 
 ## Deployment Summary
 
-The current deployment plan is based on:
+The current deployment setup is based on:
 
 - `Ubuntu 22.04`
 - `Node.js 20 LTS`
@@ -77,7 +79,7 @@ The current deployment plan is based on:
 - local uploads
 - primary domain `yukiho.site`
 
-The detailed production steps are documented in:
+The deployment documentation is still kept in the repository for reproducibility and maintenance:
 
 - `docs/deployment-guide.zh-CN.md`
 - `docs/deployment-guide.en.md`

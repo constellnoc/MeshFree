@@ -2,6 +2,7 @@
 
 请继续当前项目上下文，并优先参考以下文件：
 
+- `docs/session-notes/20260416_2_deployment-successfully-completed.md`
 - `docs/session-notes/20260416_1_deployment-started-and-docs-refined.md`
 - `docs/session-notes/20260415_1_three-core-loops-completed.md`
 - `docs/session-notes/20260415_2_deployment-discussion-summary.md`
@@ -85,17 +86,18 @@
 - 已补管理员维护脚本 `npm run admin:manage`
 - 生产环境 `CORS` 已收紧
 - 管理员登录和公开投稿已加入基础限流
-- 真实云服务器部署已开始
+- 真实云服务器部署已完成
 - 服务器 `UFW` 已启用并放行 `22/80/443`
 - 域名 `yukiho.site` 的 NS 已切换到阿里云 DNS
 - 服务器 Node.js 环境已修正到 `20.x`
-- 当前重点已从“补主干功能”转向“真实服务器按文档逐步部署、联调、验证”
+- 当前基础测试未发现明显问题
+- 当前重点已从“逐步部署”转向“继续验证、记录经验、按需小修复”
 
 本项目的首要目标是：
 
 - 先把 MVP 跑起来
 - 保持结构清晰
 - 便于我理解和继续维护
-- 在服务器上按现有文档稳妥部署成功
-- 让部署过程尽量适合第一次独立搭站的新手执行
-- 在真实环境中把 `.env`、Prisma、PM2、Nginx、HTTPS 逐步跑通
+- 已在服务器上按现有文档完成部署
+- 让部署经验、验收记录与实际运行状态保持同步
+- 在真实环境继续验证并维持稳定运行

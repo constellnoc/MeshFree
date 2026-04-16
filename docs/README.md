@@ -26,6 +26,7 @@ Current notes:
 - `session-notes/20260415_1_three-core-loops-completed.md`
 - `session-notes/20260415_2_deployment-discussion-summary.md`
 - `session-notes/20260416_1_deployment-started-and-docs-refined.md`
+- `session-notes/20260416_2_deployment-successfully-completed.md`
 
 ## Recommended Reading Order
 
