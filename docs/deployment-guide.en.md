@@ -84,6 +84,38 @@ If your cloud provider uses security groups, allow:
 - `80/tcp`
 - `443/tcp`
 
+### 3.1 How To Allow Ports In The Cloud Console
+
+This step is done in your **cloud provider control panel**, not in the Ubuntu terminal.
+
+Common names for this area may include:
+
+- Security Group
+- Firewall
+- Inbound Rules
+- Access Rules
+
+If this is your first time doing it, follow this general path:
+
+1. Log in to your cloud server control panel
+2. Find your server instance
+3. Find the attached security group or firewall rules
+4. Open the inbound rule section
+5. Add these rules:
+   - `22/tcp`
+   - `80/tcp`
+   - `443/tcp`
+6. If you are not yet familiar with source ranges, you can temporarily use:
+   - `0.0.0.0/0`
+7. Save the rules and wait for them to take effect
+
+Notes:
+
+- `22` is for SSH
+- `80` is for HTTP and `Certbot` domain validation
+- `443` is for HTTPS
+- This is not an alternative to `UFW`; both the cloud rule layer and Ubuntu firewall layer should be configured
+
 ## 4. Server Directory Convention
 
 To keep maintenance simple, use the following fixed directory layout:
@@ -147,7 +179,40 @@ adduser koito
 usermod -aG sudo koito
 ```
 
-You will be asked to set a login password for `koito`.
+When you run `adduser koito`, the terminal will usually ask you for:
+
+- a new password
+- the password again for confirmation
+- optional profile fields such as full name or phone number
+
+For those later profile fields, you can usually press Enter to skip them if you do not need them.
+
+Important notes:
+
+- When entering a Linux password, the terminal usually shows **nothing at all**
+- You may not see stars or dots
+- That is normal Linux behavior, not a freeze
+
+What you are setting here is:
+
+- the Linux login password for `koito`
+
+It is not:
+
+- the website admin password for `mano`
+- `JWT_SECRET`
+
+If you later want to reset the Linux password for `koito`, run:
+
+```bash
+sudo passwd koito
+```
+
+If you want to change the Linux password of `root`, run:
+
+```bash
+passwd
+```
 
 ### 5.4 Verify That koito Has sudo Privileges
 
@@ -243,6 +308,13 @@ sudo ufw status
 ```
 
 The goal is to expose only the ports needed by the current deployment.
+
+Important reminder:
+
+- opening ports in the cloud console is the first layer
+- opening ports in Ubuntu `UFW` is the second layer
+
+Public access usually works only when both layers allow the traffic.
 
 ### 6.2 Install fail2ban
 
@@ -481,7 +553,44 @@ or:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 11.3 Create .env
+### 11.3 The Difference Between The Three Password-Like Items
+
+During first deployment, it is very easy to confuse the following three things. Here is the distinction:
+
+#### Linux Login Password
+
+This is the password used to log in to the Ubuntu server, for example:
+
+- the password for `root`
+- the password for `koito`
+
+It is used for:
+
+- SSH login through `Xshell`
+- `sudo` elevation prompts
+
+#### Admin Dashboard Password
+
+This is the password used by the website administrator `mano` to log in to the admin page.
+
+It is used for:
+
+- logging in to the website admin dashboard
+
+It is not a Linux server login password.
+
+#### `JWT_SECRET`
+
+This is not a login password. It is the backend secret used to sign and verify admin tokens.
+
+It is used for:
+
+- generating JWTs
+- verifying JWTs
+
+It should never be exposed in the repository, screenshots, or shared notes.
+
+### 11.4 Create .env From .env.example And Edit It
 
 Go to the backend directory:
 
@@ -489,11 +598,19 @@ Go to the backend directory:
 cd /var/www/meshfree/server
 ```
 
-Create the `.env` file:
+First copy the template:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env`:
 
 ```bash
 nano .env
 ```
+
+If you use `Xshell`, this is still done inside the remote terminal session, not through Windows File Explorer.
 
 Example template:
 
@@ -507,13 +624,27 @@ ADMIN_SEED_USERNAME="mano"
 ADMIN_SEED_PASSWORD="replace-this-with-a-strong-password"
 ```
 
+Useful `nano` shortcuts:
+
+- `Ctrl + O`: save file
+- Enter: confirm the filename
+- `Ctrl + X`: exit editor
+- `Ctrl + K`: cut current line
+- `Ctrl + U`: paste previously cut content
+
+The most common save-and-exit sequence is:
+
+1. Press `Ctrl + O`
+2. Press Enter
+3. Press `Ctrl + X`
+
 Important reminders:
 
 - Do not commit `.env` to Git
 - Do not put the real `JWT_SECRET` or real admin password in documentation
 - The production admin password should be strong and should not be a short password
 
-### 11.4 Restrict .env File Permissions
+### 11.5 Restrict .env File Permissions
 
 ```bash
 chmod 600 /var/www/meshfree/server/.env
@@ -745,6 +876,27 @@ During execution, Certbot will:
 - Attempt to modify the Nginx configuration automatically
 
 If Certbot asks whether HTTP should automatically redirect to HTTPS, choose the redirect option.
+
+If this is your first time using `certbot`, this part is important:
+
+- you will usually see one option that means "no redirect"
+- and another option that means "redirect to HTTPS"
+
+You should choose:
+
+- the option labeled `Redirect`
+
+because this project already requires:
+
+- `http://yukiho.site` to redirect to `https://yukiho.site`
+- `http://www.yukiho.site` to redirect to `https://yukiho.site`
+
+If the interface uses numbered choices, the numbers may vary by environment.  
+You do not need to memorize the number. Just choose the one whose meaning is:
+
+- **redirect HTTP traffic to HTTPS**
+
+If you are unsure, look for the word `Redirect`.
 
 If successful, the final behavior should be:
 
@@ -998,6 +1150,7 @@ DATABASE_URL="file:./prisma/prod.db"
 JWT_SECRET="replace-this-with-a-random-secret"
 PORT=3001
 NODE_ENV="production"
+CORS_ALLOWED_ORIGINS="https://yukiho.site,https://www.yukiho.site"
 ADMIN_SEED_USERNAME="mano"
 ADMIN_SEED_PASSWORD="replace-this-with-a-strong-password"
 ```

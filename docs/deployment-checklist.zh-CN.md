@@ -8,12 +8,14 @@
 - [ ] 用 `root` 通过 `Xshell` 登录新服务器
 - [ ] 执行 `apt update && apt upgrade -y`
 - [ ] 创建 `koito` 并加入 `sudo` 组
+- [ ] 在 `adduser koito` 过程中完成 Linux 登录密码设置
 - [ ] 新开一个 `Xshell` 会话，用 `koito` 登录测试成功
 - [ ] 修改 `/etc/ssh/sshd_config`，禁用 `root` 远程登录
 - [ ] 重启 SSH 服务，并再次确认 `koito` 能登录
 
 ## 2. 安全与运行环境
 
+- [ ] 在云服务器控制台安全组 / 防火墙里放行 `22/80/443`
 - [ ] 配置 `UFW`，放行 `22/80/443`
 - [ ] 安装并启动 `fail2ban`
 - [ ] 安装 `git`、`curl`、`build-essential`
@@ -38,13 +40,16 @@
 
 ## 5. 配置环境变量
 
-- [ ] 在 `server` 目录创建 `.env`
+- [ ] 在 `server` 目录执行 `cp .env.example .env`
+- [ ] 使用 `nano .env` 打开环境变量文件
 - [ ] 配置 `DATABASE_URL`
 - [ ] 生成并填写 `JWT_SECRET`
 - [ ] 填写 `PORT=3001`
 - [ ] 填写 `NODE_ENV=production`
+- [ ] 填写 `CORS_ALLOWED_ORIGINS=https://yukiho.site,https://www.yukiho.site`
 - [ ] 填写 `ADMIN_SEED_USERNAME=mano`
 - [ ] 填写 `ADMIN_SEED_PASSWORD=<强密码>`
+- [ ] 用 `Ctrl + O` 保存，再用 `Ctrl + X` 退出 `nano`
 - [ ] 执行 `chmod 600 .env`
 
 ## 6. 初始化数据库与管理员
@@ -65,6 +70,7 @@
 ## 8. 配置 Nginx
 
 - [ ] 参考 `deploy/nginx/meshfree.conf.example` 创建 `/etc/nginx/sites-available/meshfree`
+- [ ] 如果你不想手抄，可以从仓库模板复制内容到该文件
 - [ ] 确认配置中包含 `client_max_body_size 30m;`
 - [ ] 启用站点配置
 - [ ] 执行 `sudo nginx -t`
@@ -75,7 +81,7 @@
 
 - [ ] 安装 `certbot` 和 `python3-certbot-nginx`
 - [ ] 执行 `sudo certbot --nginx -d yukiho.site -d www.yukiho.site`
-- [ ] 如果被问到是否重定向 HTTP 到 HTTPS，选择重定向
+- [ ] 如果被问到是否重定向 HTTP 到 HTTPS，选择带 `Redirect` 的那一项
 - [ ] 执行 `sudo certbot renew --dry-run`
 
 ## 10. 最终验收

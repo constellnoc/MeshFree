@@ -84,6 +84,38 @@
 - `80/tcp`
 - `443/tcp`
 
+### 3.1 云平台安全组 / 防火墙如何放行
+
+这一步是在**云服务器提供商控制台**里完成，不是在 Ubuntu 终端里完成。
+
+常见入口名称可能是：
+
+- 安全组
+- 防火墙
+- 入站规则
+- Inbound Rules
+
+如果你是第一次操作，可以按下面的思路去找：
+
+1. 登录云服务器控制台
+2. 找到你的这台服务器实例
+3. 找到与它绑定的“安全组”或“防火墙规则”
+4. 找到“入站规则”或“允许访问规则”
+5. 新增以下规则：
+   - `22/tcp`
+   - `80/tcp`
+   - `443/tcp`
+6. 来源地址如果你暂时不熟，可以先填写：
+   - `0.0.0.0/0`
+7. 保存规则后，等待规则生效
+
+说明：
+
+- `22` 用于 SSH 远程登录
+- `80` 用于 HTTP 和 `Certbot` 域名验证
+- `443` 用于 HTTPS
+- 这一步和后面 Ubuntu 里的 `UFW` 不是二选一，而是两层都要配置
+
 ## 4. 服务器目录约定
 
 为了便于维护，建议固定使用以下目录约定：
@@ -147,7 +179,40 @@ adduser koito
 usermod -aG sudo koito
 ```
 
-执行后需要为 `koito` 设置登录密码。
+执行 `adduser koito` 时，终端通常会依次询问你：
+
+- 输入新密码
+- 再输入一次确认密码
+- Full Name 等其他资料
+
+对于后面的姓名、电话、房间号之类字段，如果你不需要，可以直接按回车跳过。
+
+重要说明：
+
+- 输入 Linux 密码时，终端**通常不会显示任何字符，也不会显示星号**
+- 这不是卡住了，而是 Linux 的正常安全行为
+- 你只需要正常输入，然后按回车即可
+
+这里设置的是：
+
+- `koito` 的 Linux 登录密码
+
+它不是：
+
+- 网站后台管理员 `mano` 的登录密码
+- `JWT_SECRET`
+
+如果你后续想重新设置 `koito` 的 Linux 密码，可以执行：
+
+```bash
+sudo passwd koito
+```
+
+如果你想修改 `root` 的 Linux 密码，可以执行：
+
+```bash
+passwd
+```
 
 ### 5.4 验证 koito 具备 sudo 能力
 
@@ -243,6 +308,13 @@ sudo ufw status
 ```
 
 目标是只开放当前部署所需端口。
+
+这里需要再次强调：
+
+- 云厂商控制台里的安全组放行，是第一层
+- Ubuntu 里的 `UFW` 放行，是第二层
+
+只有两边都放通，公网访问才会真正生效。
 
 ### 6.2 安装 fail2ban
 
@@ -481,7 +553,44 @@ openssl rand -base64 32
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 11.3 创建 .env
+### 11.3 三种密码 / 密钥的区别
+
+第一次部署时，很容易把下面三个东西混淆。这里单独区分一下：
+
+#### Linux 登录密码
+
+这是服务器用户登录 Ubuntu 用的密码，例如：
+
+- `root` 登录服务器的密码
+- `koito` 登录服务器的密码
+
+它用于：
+
+- `Xshell` SSH 登录服务器
+- `sudo` 提权时输入
+
+#### 后台管理员密码
+
+这是网站后台管理员 `mano` 登录管理页面用的密码。
+
+它用于：
+
+- 登录 `/admin` 后台页面
+
+它不是 Linux 用户密码，不能用来 SSH 登录服务器。
+
+#### `JWT_SECRET`
+
+这不是“登录密码”，而是后端用于签发和校验管理员 token 的密钥。
+
+它用于：
+
+- 后端生成 JWT
+- 后端验证 JWT
+
+它不应该被任何人拿去手动登录，也不应该暴露在仓库或截图里。
+
+### 11.4 从 .env.example 创建并编辑 .env
 
 进入后端目录：
 
@@ -489,11 +598,19 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 cd /var/www/meshfree/server
 ```
 
-创建 `.env` 文件：
+先从模板复制：
+
+```bash
+cp .env.example .env
+```
+
+再编辑 `.env`：
 
 ```bash
 nano .env
 ```
+
+如果你使用的是 `Xshell`，这一步仍然是在远程终端里完成，不是在本地 Windows 文件资源管理器里完成。
 
 示例模板如下：
 
@@ -507,13 +624,27 @@ ADMIN_SEED_USERNAME="mano"
 ADMIN_SEED_PASSWORD="请替换为你的强密码"
 ```
 
+`nano` 的常用操作：
+
+- `Ctrl + O`：保存文件
+- 回车：确认文件名
+- `Ctrl + X`：退出编辑器
+- `Ctrl + K`：剪切当前行
+- `Ctrl + U`：粘贴刚刚剪切的内容
+
+如果你改完 `.env` 后想保存退出，最常见的顺序是：
+
+1. 按 `Ctrl + O`
+2. 按回车确认
+3. 按 `Ctrl + X`
+
 重要提醒：
 
 - 不要把 `.env` 提交到 Git 仓库
 - 不要把真实 `JWT_SECRET` 和管理员密码写进文档
 - 正式管理员密码请务必使用强密码，不建议使用短密码
 
-### 11.4 收紧 .env 权限
+### 11.5 收紧 .env 权限
 
 ```bash
 chmod 600 /var/www/meshfree/server/.env
@@ -745,6 +876,28 @@ sudo certbot --nginx -d yukiho.site -d www.yukiho.site
 - 自动尝试修改 Nginx 配置
 
 第一次执行时，如果 Certbot 询问是否将 HTTP 自动跳转到 HTTPS，建议选择“重定向”。
+
+如果你是第一次用 `certbot`，这里很重要：
+
+- 你通常会看到两个选项
+- 一个表示“不重定向”
+- 一个表示“重定向到 HTTPS”
+
+你应该选择：
+
+- 表示 `Redirect` 的那一项
+
+因为我们当前项目已经明确要求：
+
+- `http://yukiho.site` 自动跳到 `https://yukiho.site`
+- `http://www.yukiho.site` 自动跳到 `https://yukiho.site`
+
+如果界面是编号选择，不同环境编号可能略有不同。  
+你不需要死记编号，只要认准含义是：
+
+- **把 HTTP 重定向到 HTTPS**
+
+如果你看不懂英文提示，就重点找带有 `Redirect` 这个单词的选项。
 
 如果成功，后续应实现以下规则：
 
@@ -998,6 +1151,7 @@ DATABASE_URL="file:./prisma/prod.db"
 JWT_SECRET="replace-this-with-a-random-secret"
 PORT=3001
 NODE_ENV="production"
+CORS_ALLOWED_ORIGINS="https://yukiho.site,https://www.yukiho.site"
 ADMIN_SEED_USERNAME="mano"
 ADMIN_SEED_PASSWORD="replace-this-with-a-strong-password"
 ```
