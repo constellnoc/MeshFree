@@ -2,8 +2,11 @@
 
 请继续当前项目上下文，并优先参考以下文件：
 
-- `docs/session-notes/20260411_1_scaffold-and-connectivity-check.md`
-- `docs/session-notes/20260410_requirements-and-initialization-prep.md`
+- `docs/session-notes/20260415_1_three-core-loops-completed.md`
+- `docs/session-notes/20260415_2_deployment-discussion-summary.md`
+- `docs/deployment-guide.zh-CN.md`
+- `docs/deployment-checklist.zh-CN.md`
+- `docs/README.md`
 - `docs/mvp-spec.zh-CN.md`
 - `docs/api-design.zh-CN.md`
 
@@ -24,6 +27,13 @@
 - 不要把敏感信息写进仓库。
 - 如果生成项目文档，默认同时维护中文和英文版本；若只是和我解释，则只用中文。
 - 在正式开始新一轮开发前，先简要复述当前项目阶段、已完成内容和本轮计划。
+- 如果当前任务与部署、服务器联调、域名、HTTPS、Nginx、PM2、环境变量有关，优先沿用现有部署文档和模板，不要重新发明一套新方案。
+- 如果准备修改部署相关文档，先检查以下文件是否需要同步更新：
+  - `docs/deployment-guide.zh-CN.md`
+  - `docs/deployment-guide.en.md`
+  - `docs/deployment-checklist.zh-CN.md`
+  - `docs/README.md`
+- 如果本轮结束时适合给出 commit message，请给出建议的 commit message，但不要擅自提交。
 
 当前已确认技术栈：
 
@@ -60,16 +70,26 @@
 本项目当前阶段说明：
 
 - 需求、技术栈、API 方向已经确认
-- 中英双语需求文档和 API 文档已经创建
-- `client` 和 `server` 已完成初始化
-- `Prisma + SQLite` 已完成初始化并生成第一版数据库
-- 后端 API 骨架已完成
-- 前端页面骨架已完成
-- 前后端最小联调已打通
-- 下一步应进入真实业务实现阶段
+- 中英双语需求文档、API 文档、部署文档已经创建
+- `client` 和 `server` 初始化已完成
+- `Prisma + SQLite` 已完成初始化并生成数据库
+- `MeshFree MVP` 三条核心业务闭环已经本地打通
+- 公开模型浏览与下载已接入真实数据
+- 公开投稿已接入真实上传和数据库写入
+- 管理员登录、审核、拒绝、删除已接入真实逻辑
+- 管理员 seed 用户名已支持环境变量 `ADMIN_SEED_USERNAME`
+- 已补 `server/.env.example`
+- 已补 `server/ecosystem.config.cjs`
+- 已补 `deploy/nginx/meshfree.conf.example`
+- 已补管理员维护脚本 `npm run admin:manage`
+- 生产环境 `CORS` 已收紧
+- 管理员登录和公开投稿已加入基础限流
+- 当前重点已从“补主干功能”转向“部署准备、服务器联调、真实环境验证”
 
 本项目的首要目标是：
 
 - 先把 MVP 跑起来
 - 保持结构清晰
 - 便于我理解和继续维护
+- 在服务器上按现有文档稳妥部署成功
+- 让部署过程尽量适合第一次独立搭站的新手执行
