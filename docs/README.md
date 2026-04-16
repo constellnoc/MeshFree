@@ -12,6 +12,7 @@
 - Chinese full deployment guide: `deployment-guide.zh-CN.md`
 - English full deployment guide: `deployment-guide.en.md`
 - Chinese short deployment checklist: `deployment-checklist.zh-CN.md`
+- Chinese server maintenance guide: `server-maintenance.zh-CN.md`
 
 ## Session Notes
 
@@ -36,7 +37,8 @@ If you want to understand the project quickly, read in this order:
 2. `api-design.zh-CN.md` or `api-design.en.md`
 3. `deployment-guide.zh-CN.md` if you are preparing deployment
 4. `deployment-checklist.zh-CN.md` when you are ready to execute deployment step by step
-5. `session-notes/` for project history and decision context
+5. `server-maintenance.zh-CN.md` when you want day-to-day server operations guidance
+6. `session-notes/` for project history and decision context
 
 ## Notes
 
