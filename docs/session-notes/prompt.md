@@ -2,6 +2,7 @@
 
 请继续当前项目上下文，并优先参考以下文件：
 
+- `docs/session-notes/20260416_1_deployment-started-and-docs-refined.md`
 - `docs/session-notes/20260415_1_three-core-loops-completed.md`
 - `docs/session-notes/20260415_2_deployment-discussion-summary.md`
 - `docs/deployment-guide.zh-CN.md`
@@ -84,7 +85,11 @@
 - 已补管理员维护脚本 `npm run admin:manage`
 - 生产环境 `CORS` 已收紧
 - 管理员登录和公开投稿已加入基础限流
-- 当前重点已从“补主干功能”转向“部署准备、服务器联调、真实环境验证”
+- 真实云服务器部署已开始
+- 服务器 `UFW` 已启用并放行 `22/80/443`
+- 域名 `yukiho.site` 的 NS 已切换到阿里云 DNS
+- 服务器 Node.js 环境已修正到 `20.x`
+- 当前重点已从“补主干功能”转向“真实服务器按文档逐步部署、联调、验证”
 
 本项目的首要目标是：
 
@@ -93,3 +98,4 @@
 - 便于我理解和继续维护
 - 在服务器上按现有文档稳妥部署成功
 - 让部署过程尽量适合第一次独立搭站的新手执行
+- 在真实环境中把 `.env`、Prisma、PM2、Nginx、HTTPS 逐步跑通

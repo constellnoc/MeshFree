@@ -371,7 +371,19 @@ pm2 -v
 
 You have already purchased `yukiho.site`, but before HTTPS can work, you still need to complete DNS setup.
 
-At minimum, create:
+The purpose of this step is:
+
+- to point `yukiho.site` to your server public IP
+- to let browsers know which server should answer for this domain
+- to prepare for the later `Certbot` HTTPS certificate request
+
+Important reminders:
+
+- DNS setup is done in the **domain platform / DNS control panel**
+- this step is not done inside the `Xshell` terminal
+- if DNS is not configured correctly, `Certbot` will usually fail later
+
+For this project, you should at minimum create:
 
 - `A` record: `yukiho.site -> server public IPv4`
 - `A` record: `www.yukiho.site -> server public IPv4`
@@ -381,6 +393,73 @@ Notes:
 - The apex domain `yukiho.site` is the canonical domain
 - `www.yukiho.site` is only used for compatibility access and will later redirect to the apex domain in `Nginx`
 
+### 8.1 Where You Should Configure It
+
+Log in to the platform where your domain or DNS is managed, then find a page with a name similar to:
+
+- Domain DNS
+- DNS records
+- Record management
+- DNS settings
+
+The usual path is:
+
+1. Log in to the domain platform control panel
+2. Find your domain `yukiho.site`
+3. Open the DNS records page
+4. Add two new records
+
+### 8.2 How These Two Records Should Be Filled
+
+If your server public IPv4 is, for example:
+
+```text
+47.xxx.xxx.xxx
+```
+
+Then you should create these two records:
+
+#### Record 1: Apex domain
+
+- Host record: `@`
+- Record type: `A`
+- Record value: `47.xxx.xxx.xxx`
+
+This means:
+
+- `yukiho.site -> 47.xxx.xxx.xxx`
+
+#### Record 2: www domain
+
+- Host record: `www`
+- Record type: `A`
+- Record value: `47.xxx.xxx.xxx`
+
+This means:
+
+- `www.yukiho.site -> 47.xxx.xxx.xxx`
+
+### 8.3 What Each Field Means
+
+- `@`: means the apex domain, which is `yukiho.site`
+- `www`: means `www.yukiho.site`
+- `A` record: points a domain to an IPv4 address
+- record value: your server public IP
+- TTL: if your control panel shows this field, you can usually keep the default value for the first setup
+
+### 8.4 Why Both Records Are Needed
+
+The canonical domain of this project is:
+
+- `yukiho.site`
+
+But we also want:
+
+- `www.yukiho.site` to reach the same server
+- and then let `Nginx` redirect `www` to the apex domain
+
+That is why both records should point to the same server first.
+
 You can check whether DNS has started working with:
 
 ```bash
@@ -388,14 +467,31 @@ ping yukiho.site
 ping www.yukiho.site
 ```
 
-If you just added the records, propagation may take some time.
+You can also run this on your own computer:
 
-If you are not yet familiar with your domain control panel, interpret the fields like this:
+```bash
+nslookup yukiho.site
+nslookup www.yukiho.site
+```
 
-- Host record `@` means the apex domain `yukiho.site`
-- Host record `www` means `www.yukiho.site`
-- Record type should be `A`
-- Record value should be your server public IPv4 address
+You can treat DNS as basically working when:
+
+- the returned IP matches your server public IP
+- both domains resolve to the same server
+
+If you just saved the records, propagation can take from minutes to several hours.  
+If it does not work immediately, that does not automatically mean the configuration is wrong.
+
+### 8.5 The Correct Order Relative To HTTPS
+
+The correct order is:
+
+1. Finish DNS setup first
+2. Confirm `http://yukiho.site` can already reach your server
+3. Then run `certbot` to request HTTPS
+
+Do not reverse this order.  
+If DNS is not yet pointing to the server, `certbot` domain validation will usually fail.
 
 ## 9. Get The Project Code
 
