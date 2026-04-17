@@ -2,8 +2,8 @@
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e5e7eb;
-  background: #0f172a;
+  color: #0f172a;
+  background: #f8fafc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,7 +18,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
 }
 
 a {
@@ -50,7 +50,7 @@ button {
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #93c5fd;
+  color: #2563eb;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.85rem;
@@ -71,8 +71,8 @@ button {
 .nav-link {
   padding: 10px 14px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.12);
-  color: #cbd5e1;
+  background: rgba(37, 99, 235, 0.08);
+  color: #334155;
 }
 
 .nav-link-active {
@@ -98,9 +98,9 @@ button {
 .card {
   padding: 24px;
   border-radius: 18px;
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 18px 40px rgba(148, 163, 184, 0.18);
 }
 
 .card h2 {
@@ -110,7 +110,7 @@ button {
 
 .card p {
   margin: 0 0 12px;
-  color: #cbd5e1;
+  color: #475569;
 }
 
 .hero-card h2,
@@ -140,19 +140,19 @@ button {
 }
 
 .button-link.secondary {
-  background: rgba(148, 163, 184, 0.16);
-  color: #e2e8f0;
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
 .plain-list {
   margin: 0;
   padding-left: 20px;
-  color: #cbd5e1;
+  color: #475569;
 }
 
 .section-kicker {
   margin: 0 0 8px;
-  color: #93c5fd;
+  color: #2563eb;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.82rem;
@@ -181,7 +181,7 @@ button {
   width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
-  background: #0b1120;
+  background: #dbeafe;
 }
 
 .model-meta {
@@ -190,12 +190,12 @@ button {
 
 .model-link {
   display: inline-flex;
-  color: #93c5fd;
+  color: #2563eb;
   font-weight: 600;
 }
 
 .model-date {
-  color: #93c5fd;
+  color: #2563eb;
   font-size: 0.92rem;
 }
 
@@ -220,7 +220,7 @@ button {
   height: 100%;
   min-height: 320px;
   object-fit: cover;
-  background: #0b1120;
+  background: #dbeafe;
 }
 
 .submit-grid {
@@ -239,17 +239,17 @@ button {
 }
 
 .form-label {
-  color: #e2e8f0;
+  color: #0f172a;
   font-weight: 600;
 }
 
 .form-input {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid rgba(148, 163, 184, 0.4);
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.9);
-  color: #f8fafc;
+  background: #ffffff;
+  color: #0f172a;
 }
 
 .form-input:focus {
@@ -262,8 +262,8 @@ button {
   padding: 8px 12px;
   border: none;
   border-radius: 10px;
-  background: rgba(37, 99, 235, 0.18);
-  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
   cursor: pointer;
 }
 
@@ -273,7 +273,7 @@ button {
 }
 
 .form-help {
-  color: #93c5fd;
+  color: #2563eb;
   font-size: 0.92rem;
 }
 
@@ -293,15 +293,15 @@ button {
 }
 
 .error-message {
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  background: rgba(127, 29, 29, 0.35);
-  color: #fecaca;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .success-message {
-  border: 1px solid rgba(74, 222, 128, 0.35);
-  background: rgba(20, 83, 45, 0.35);
-  color: #dcfce7;
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  background: #f0fdf4;
+  color: #166534;
 }
 
 .admin-grid {
@@ -327,8 +327,8 @@ button {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 999px;
   padding: 8px 14px;
-  background: rgba(15, 23, 42, 0.9);
-  color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
   cursor: pointer;
 }
 
@@ -349,7 +349,7 @@ button {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 16px;
   padding: 16px;
-  background: rgba(15, 23, 42, 0.82);
+  background: rgba(255, 255, 255, 0.96);
   color: inherit;
   cursor: pointer;
 }
@@ -369,7 +369,7 @@ button {
 
 .admin-submission-meta {
   margin-bottom: 0;
-  color: #93c5fd;
+  color: #2563eb;
   font-size: 0.92rem;
 }
 
@@ -384,18 +384,18 @@ button {
 }
 
 .status-pending {
-  background: rgba(250, 204, 21, 0.18);
-  color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .status-approved {
-  background: rgba(74, 222, 128, 0.18);
-  color: #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .status-rejected {
-  background: rgba(248, 113, 113, 0.18);
-  color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .admin-detail {
@@ -408,7 +408,7 @@ button {
   border-radius: 16px;
   aspect-ratio: 16 / 10;
   object-fit: cover;
-  background: #0b1120;
+  background: #dbeafe;
 }
 
 .admin-detail-meta {
@@ -421,8 +421,8 @@ button {
 }
 
 .destructive-button {
-  background: rgba(127, 29, 29, 0.55);
-  color: #fee2e2;
+  background: #dc2626;
+  color: #ffffff;
 }
 
 pre {
@@ -430,8 +430,9 @@ pre {
   padding: 16px;
   border-radius: 12px;
   overflow: auto;
-  background: #020617;
-  color: #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border: 1px solid #bfdbfe;
   font-size: 0.92rem;
 }
 
