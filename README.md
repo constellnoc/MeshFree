@@ -2,6 +2,8 @@
 
 `MeshFree` is a lightweight model upload and download website built for MVP demonstration.
 
+Current formal release milestone: `v0.1.0`
+
 The current repository already includes the three core MVP loops:
 
 - Public model browsing and detail view
@@ -24,6 +26,14 @@ Current status:
 - Chinese and English deployment guides completed
 - Real server deployment completed
 - Current basic testing has not revealed obvious problems
+
+## Release
+
+- Release branch: `release/v0.1.0`
+- Release tag: `v0.1.0`
+- Release notes (ZH): `docs/releases/v0.1.0.zh-CN.md`
+- Release notes (EN): `docs/releases/v0.1.0.en.md`
+- Change log: `CHANGELOG.md`
 
 ## Tech Stack
 
@@ -57,6 +67,9 @@ Core documents:
 - English MVP spec: `docs/mvp-spec.en.md`
 - Chinese API design: `docs/api-design.zh-CN.md`
 - English API design: `docs/api-design.en.md`
+- Chinese release notes: `docs/releases/v0.1.0.zh-CN.md`
+- English release notes: `docs/releases/v0.1.0.en.md`
+- Change log: `CHANGELOG.md`
 
 Deployment guides:
 

@@ -7,6 +7,12 @@
 - Chinese API design: `api-design.zh-CN.md`
 - English API design: `api-design.en.md`
 
+## Release Docs
+
+- Chinese v0.1.0 release notes: `releases/v0.1.0.zh-CN.md`
+- English v0.1.0 release notes: `releases/v0.1.0.en.md`
+- Repository changelog: `../CHANGELOG.md`
+
 ## Deployment Docs
 
 - Chinese full deployment guide: `deployment-guide.zh-CN.md`
