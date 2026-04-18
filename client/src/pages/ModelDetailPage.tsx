@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getApprovedModelDetail } from "../api/models";
 import type { ModelDetail } from "../types/model";
@@ -12,11 +12,17 @@ function formatDate(dateString: string): string {
   });
 }
 
-export function ModelDetailPage() {
+interface ModelDetailPageProps {
+  presentation?: "page" | "modal";
+}
+
+export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps) {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const [model, setModel] = useState<ModelDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const isModal = presentation === "modal";
 
   useEffect(() => {
     const loadModelDetail = async () => {
@@ -42,51 +48,128 @@ export function ModelDetailPage() {
     void loadModelDetail();
   }, [id]);
 
+  useEffect(() => {
+    if (!isModal) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        navigate(-1);
+      }
+    };
+
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isModal, navigate]);
+
+  const handleClose = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/#gallery", { replace: true });
+  };
+
   if (isLoading) {
-    return (
-      <section className="page-grid">
+    const loadingContent = (
+      <section className={isModal ? "page-grid modal-detail-grid" : "page-grid"}>
         <div className="card">
           <h2>Loading model</h2>
           <p>The client is requesting `/api/models/{id || ":id"}`.</p>
         </div>
       </section>
     );
-  }
 
-  if (errorMessage || !model) {
-    return (
-      <section className="page-grid">
-        <div className="card">
-          <h2>Model unavailable</h2>
-          <p>{errorMessage || "Model not found."}</p>
-          <Link className="button-link" to="/">
-            Back to home
-          </Link>
+    return isModal ? (
+      <div className="detail-modal-overlay" onClick={handleClose}>
+        <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
+          <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+            <span className="detail-modal-close-icon" aria-hidden="true" />
+          </button>
+          {loadingContent}
         </div>
-      </section>
+      </div>
+    ) : (
+      loadingContent
     );
   }
 
-  return (
-    <section className="page-grid detail-grid">
+  if (errorMessage || !model) {
+    const errorContent = (
+      <section className={isModal ? "page-grid modal-detail-grid" : "page-grid"}>
+        <div className="card">
+          <h2>Model unavailable</h2>
+          <p>{errorMessage || "Model not found."}</p>
+          {!isModal ? (
+            <Link className="button-link" to="/">
+              Back to home
+            </Link>
+          ) : null}
+        </div>
+      </section>
+    );
+
+    return isModal ? (
+      <div className="detail-modal-overlay" onClick={handleClose}>
+        <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
+          <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+            <span className="detail-modal-close-icon" aria-hidden="true" />
+          </button>
+          {errorContent}
+        </div>
+      </div>
+    ) : (
+      errorContent
+    );
+  }
+
+  const detailContent = (
+    <section className={isModal ? "page-grid detail-grid detail-grid-modal" : "page-grid detail-grid"}>
       <div className="card detail-cover-card">
         <img src={model.coverImageUrl} alt={model.title} className="detail-cover" />
       </div>
 
       <div className="card detail-card">
-        <p className="section-kicker">Model Detail</p>
+        <p className="section-kicker">{isModal ? "Model Preview" : "Model Detail"}</p>
         <h2>{model.title}</h2>
-        <p>{model.description}</p>
+        <div className={isModal ? "detail-description detail-description-scroll" : "detail-description"}>
+          <p>{model.description}</p>
+        </div>
         <p className="model-date">Created {formatDate(model.createdAt)}</p>
         <div className="actions">
           <a className="button-link" href={`/api/models/${model.id}/download`}>
             Download ZIP
           </a>
-          <Link className="button-link secondary" to="/">
-            Back to home
-          </Link>
+          {!isModal ? (
+            <Link className="button-link secondary" to="/">
+              Back to home
+            </Link>
+          ) : null}
         </div>
       </div>
     </section>
+  );
+
+  if (!isModal) {
+    return detailContent;
+  }
+
+  return (
+    <div className="detail-modal-overlay" onClick={handleClose}>
+      <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
+        <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+          <span className="detail-modal-close-icon" aria-hidden="true" />
+        </button>
+        {detailContent}
+      </div>
+    </div>
   );
 }

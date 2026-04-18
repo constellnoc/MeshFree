@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { getApprovedModels } from "../api/models";
 import type { ModelSummary } from "../types/model";
@@ -13,6 +13,7 @@ function formatDate(dateString: string): string {
 }
 
 export function HomePage() {
+  const location = useLocation();
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -156,6 +157,7 @@ export function HomePage() {
             <Link
               key={model.id}
               to={`/models/${model.id}`}
+              state={{ backgroundLocation: location }}
               className="card model-card"
             >
               <img
