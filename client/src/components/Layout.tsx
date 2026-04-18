@@ -159,31 +159,26 @@ export function Layout() {
             </Link>
           </div>
 
-          <div className="topbar-center">
-            <nav className="app-nav" aria-label="Primary navigation">
-              <Link
-                className={location.pathname === "/" && homeSection === "gallery" ? "nav-link nav-link-active" : "nav-link"}
-                to="/#gallery"
-              >
-                Gallery
-              </Link>
-              <div className="nav-search-placeholder" aria-hidden="true">
-                Search
-              </div>
-              <Link
-                className={
-                  (location.pathname === "/" && homeSection === "about") || location.hash === "#about"
-                    ? "nav-link nav-link-active"
-                    : "nav-link"
-                }
-                to={`${location.pathname}#about`}
-              >
-                About
-              </Link>
-            </nav>
-          </div>
-
-          <div className="topbar-actions">
+          <nav className="app-nav topbar-nav" aria-label="Primary navigation">
+            <Link
+              className={location.pathname === "/" && homeSection === "gallery" ? "nav-link nav-link-active" : "nav-link"}
+              to="/#gallery"
+            >
+              Gallery
+            </Link>
+            <div className="nav-search-placeholder" aria-hidden="true">
+              Search
+            </div>
+            <Link
+              className={
+                (location.pathname === "/" && homeSection === "about") || location.hash === "#about"
+                  ? "nav-link nav-link-active"
+                  : "nav-link"
+              }
+              to={`${location.pathname}#about`}
+            >
+              About
+            </Link>
             {hasAdminToken ? (
               <NavLink
                 className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
@@ -200,10 +195,15 @@ export function Layout() {
               </NavLink>
             )}
 
-            <Link className="button-link topbar-upload-button" to="/upload">
+            <NavLink
+              className={({ isActive }) =>
+                isActive ? "nav-link nav-link-active topbar-upload-button" : "nav-link topbar-upload-button"
+              }
+              to="/upload"
+            >
               Upload
-            </Link>
-          </div>
+            </NavLink>
+          </nav>
         </div>
       </header>
 

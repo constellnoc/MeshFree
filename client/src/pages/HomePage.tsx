@@ -41,7 +41,7 @@ export function HomePage() {
       animationFrameId = 0;
 
       const viewportHeight = Math.max(window.innerHeight, 1);
-      const nextProgress = Math.min(window.scrollY / (viewportHeight * 0.9), 1);
+      const nextProgress = Math.min(window.scrollY / (viewportHeight * 0.66), 1);
 
       setHeroScrollProgress((currentProgress) => {
         return Math.abs(currentProgress - nextProgress) < 0.01
@@ -73,11 +73,11 @@ export function HomePage() {
     };
   }, []);
 
-  const exitProgress = Math.max((heroScrollProgress - 0.58) / 0.42, 0);
+  const exitProgress = Math.max((heroScrollProgress - 0.48) / 0.26, 0);
   const heroStyle = {
     "--hero-progress": heroScrollProgress.toFixed(3),
     "--hero-exit": exitProgress.toFixed(3),
-    "--hero-opacity-fast": Math.max(1 - exitProgress * exitProgress * 1.35, 0).toFixed(3),
+    "--hero-opacity-fast": Math.max(1 - exitProgress * exitProgress * 1.85, 0).toFixed(3),
   } as CSSProperties;
 
   return (

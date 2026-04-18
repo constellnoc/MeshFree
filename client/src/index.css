@@ -56,8 +56,8 @@ button {
   margin: 0 auto;
   min-height: 74px;
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(0, 1.5fr) minmax(220px, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+  gap: 24px;
   align-items: center;
 }
 
@@ -73,38 +73,30 @@ button {
   color: #0f172a;
 }
 
-.topbar-center {
-  display: flex;
-  justify-content: center;
-  min-width: 0;
-}
-
 .app-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap;
-  width: 100%;
-  justify-content: center;
 }
 
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: flex-end;
+.topbar-nav {
+  min-width: 0;
 }
 
 .nav-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: 38px;
   padding: 8px 14px;
   border-radius: 6px;
   background: transparent;
   color: #334155;
   transition: background-color 0.18s ease, color 0.18s ease;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .nav-link-active {
@@ -115,10 +107,8 @@ button {
 .nav-search-placeholder {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  flex: 0 1 200px;
-  min-width: 140px;
-  max-width: 200px;
+  justify-content: center;
+  width: 100%;
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -130,6 +120,7 @@ button {
 
 .topbar-upload-button {
   min-height: 38px;
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .page-container {
@@ -246,8 +237,8 @@ button {
   filter: blur(20px);
   opacity: calc(0.86 * var(--hero-opacity-fast));
   transform:
-    translate3d(calc(var(--hero-progress) * -30px), calc(var(--hero-progress) * 54px), 0)
-    scale(calc(1.06 - (var(--hero-exit) * 0.42)));
+    translate3d(calc(var(--hero-progress) * -84px), calc(var(--hero-progress) * 126px), 0)
+    scale(calc(1.09 - (var(--hero-exit) * 0.58)));
 }
 
 .geometry-shape-yellow-orb {
@@ -260,9 +251,9 @@ button {
   filter: blur(4px);
   opacity: calc(0.88 * var(--hero-opacity-fast));
   transform:
-    translate3d(calc(var(--hero-progress) * 22px), calc(var(--hero-progress) * 8px), 0)
-    rotate(calc(var(--hero-progress) * -14deg))
-    scale(calc(1 - (var(--hero-exit) * 0.18)));
+    translate3d(calc(var(--hero-progress) * 58px), calc(var(--hero-progress) * 34px), 0)
+    rotate(calc(var(--hero-progress) * -28deg))
+    scale(calc(1.04 - (var(--hero-exit) * 0.28)));
 }
 
 .geometry-shape-blue-disc {
@@ -276,9 +267,9 @@ button {
   box-shadow: 0 28px 54px rgba(37, 99, 235, 0.18);
   opacity: calc(0.94 * var(--hero-opacity-fast));
   transform:
-    translate3d(calc(var(--hero-progress) * -48px), calc(var(--hero-progress) * 86px), 0)
-    rotate(calc(var(--hero-progress) * 18deg))
-    scale(calc(1.02 - (var(--hero-exit) * 0.54)));
+    translate3d(calc(var(--hero-progress) * -116px), calc(var(--hero-progress) * 178px), 0)
+    rotate(calc(var(--hero-progress) * 34deg))
+    scale(calc(1.06 - (var(--hero-exit) * 0.74)));
 }
 
 .geometry-shape-blue-ring {
@@ -290,9 +281,9 @@ button {
   border: 1px solid rgba(59, 130, 246, 0.32);
   opacity: calc(0.64 * var(--hero-opacity-fast));
   transform:
-    translate3d(calc(var(--hero-progress) * -18px), calc(var(--hero-progress) * 48px), 0)
-    rotate(calc(var(--hero-progress) * 40deg))
-    scale(calc(1.08 - (var(--hero-exit) * 0.46)));
+    translate3d(calc(var(--hero-progress) * -46px), calc(var(--hero-progress) * 118px), 0)
+    rotate(calc(var(--hero-progress) * 84deg))
+    scale(calc(1.12 - (var(--hero-exit) * 0.62)));
 }
 
 .geometry-shape-red-bar {
@@ -305,9 +296,9 @@ button {
   filter: blur(10px);
   opacity: calc(0.72 * var(--hero-opacity-fast));
   transform:
-    translate3d(calc(var(--hero-progress) * 42px), calc(var(--hero-progress) * 50px), 0)
-    rotate(calc(var(--hero-progress) * -10deg))
-    scaleX(calc(1 - (var(--hero-exit) * 0.34)));
+    translate3d(calc(var(--hero-progress) * 124px), calc(var(--hero-progress) * 112px), 0)
+    rotate(calc(var(--hero-progress) * -24deg))
+    scaleX(calc(1.02 - (var(--hero-exit) * 0.48)));
 }
 
 .geometry-shape-yellow-chip {
@@ -320,9 +311,9 @@ button {
   box-shadow: 0 18px 40px rgba(250, 204, 21, 0.16);
   opacity: calc(0.5 * var(--hero-opacity-fast));
   transform:
-    translate3d(calc(var(--hero-progress) * -12px), calc(var(--hero-progress) * 28px), 0)
-    rotate(calc(var(--hero-progress) * 18deg))
-    scale(calc(1 - (var(--hero-exit) * 0.25)));
+    translate3d(calc(var(--hero-progress) * -42px), calc(var(--hero-progress) * 74px), 0)
+    rotate(calc(var(--hero-progress) * 42deg))
+    scale(calc(1.04 - (var(--hero-exit) * 0.34)));
 }
 
 .actions {
@@ -742,18 +733,9 @@ pre {
     min-height: auto;
   }
 
-  .topbar-center {
-    overflow-x: auto;
-    justify-content: flex-start;
-  }
-
   .app-nav {
-    width: max-content;
-    justify-content: flex-start;
-  }
-
-  .topbar-actions {
-    justify-content: flex-start;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .home-page {
