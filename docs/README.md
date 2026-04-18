@@ -34,6 +34,8 @@ Current notes:
 - `session-notes/20260415_2_deployment-discussion-summary.md`
 - `session-notes/20260416_1_deployment-started-and-docs-refined.md`
 - `session-notes/20260416_2_deployment-successfully-completed.md`
+- `session-notes/20260418_1_navigation-structure-and-ui-adjustments.md`
+- `session-notes/20260418_2_home-hero-geometry-execution-handoff.md`
 
 ## Recommended Reading Order
 
