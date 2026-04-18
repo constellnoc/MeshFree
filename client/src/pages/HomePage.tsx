@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
 import { getApprovedModels } from "../api/models";
@@ -16,6 +16,7 @@ export function HomePage() {
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [heroScrollProgress, setHeroScrollProgress] = useState(0);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -33,25 +34,106 @@ export function HomePage() {
     void loadModels();
   }, []);
 
+  useEffect(() => {
+    let animationFrameId = 0;
+
+    const updateHeroProgress = () => {
+      animationFrameId = 0;
+
+      const viewportHeight = Math.max(window.innerHeight, 1);
+      const nextProgress = Math.min(window.scrollY / (viewportHeight * 0.9), 1);
+
+      setHeroScrollProgress((currentProgress) => {
+        return Math.abs(currentProgress - nextProgress) < 0.01
+          ? currentProgress
+          : nextProgress;
+      });
+    };
+
+    const requestUpdate = () => {
+      if (animationFrameId !== 0) {
+        return;
+      }
+
+      animationFrameId = window.requestAnimationFrame(updateHeroProgress);
+    };
+
+    requestUpdate();
+
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+
+    return () => {
+      if (animationFrameId !== 0) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+    };
+  }, []);
+
+  const heroStyle = {
+    "--hero-progress": heroScrollProgress.toFixed(3),
+  } as CSSProperties;
+
   return (
-    <section className="page-stack">
-      <div className="card hero-card">
-        <p className="section-kicker">Public Models</p>
-        <h2>Browse approved model resources</h2>
-        <p>
-          This page shows only approved submissions from the backend. Visitors can
-          open a detail page and download the ZIP file without logging in.
-        </p>
+    <section className="page-stack home-page">
+      <section className="hero-shell" style={heroStyle}>
+        <div className="hero-panel">
+          <div className="hero-copy">
+            <p className="section-kicker">MeshFree</p>
+            <h1>Open resources, open creativity.</h1>
+            <p className="hero-lead">
+              MeshFree is a lightweight platform for browsing, sharing, and
+              reviewing 3D model resources.
+            </p>
+            <p className="hero-support">
+              Browse approved resources with a clean review flow, then move
+              naturally into the public gallery without leaving the page rhythm.
+            </p>
+            <div className="actions">
+              <Link className="button-link" to="/#gallery">
+                Explore gallery
+              </Link>
+              <Link className="button-link secondary" to="/submit">
+                Upload a model
+              </Link>
+            </div>
+          </div>
+
+          <div className="hero-geometry" aria-hidden="true">
+            <div className="geometry-cluster geometry-cluster-primary">
+              <span className="geometry-shape geometry-shape-panel" />
+              <span className="geometry-shape geometry-shape-orb" />
+            </div>
+            <div className="geometry-cluster geometry-cluster-secondary">
+              <span className="geometry-shape geometry-shape-wireframe" />
+              <span className="geometry-shape geometry-shape-bar" />
+            </div>
+          </div>
+        </div>
+
+        <div className="hero-transition">
+          <p className="hero-transition-label">Public resources, quietly curated</p>
+          <div className="hero-transition-line" />
+        </div>
+      </section>
+
+      <div id="gallery" className="gallery-anchor gallery-anchor-enhanced">
+        <div className="gallery-anchor-copy">
+          <p className="section-kicker">Gallery</p>
+          <h2>Approved model resources</h2>
+          <p>
+            This section shows approved submissions from the backend. Visitors
+            can open detail pages and download the ZIP files without logging in.
+          </p>
+        </div>
         <div className="actions">
           <Link className="button-link secondary" to="/submit">
             Submit a new model
           </Link>
         </div>
-      </div>
-
-      <div id="gallery" className="gallery-anchor">
-        <p className="section-kicker">Gallery</p>
-        <h2>Approved model resources</h2>
       </div>
 
       {isLoading ? (
