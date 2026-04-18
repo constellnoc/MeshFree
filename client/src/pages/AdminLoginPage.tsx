@@ -16,7 +16,7 @@ function getLoginErrorMessage(error: unknown): string {
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +65,7 @@ export function AdminLoginPage() {
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
+              placeholder="Enter username"
               disabled={isSubmitting}
             />
           </label>

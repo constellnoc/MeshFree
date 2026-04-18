@@ -1,3 +1,5 @@
+import fs from "fs";
+
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
@@ -7,6 +9,7 @@ import {
   getStoredFileName,
   parseSubmissionId,
   removeUploadFile,
+  resolveUploadFilePath,
   toPublicAssetUrl,
 } from "../lib/uploads";
 import { authMiddleware } from "../middleware/auth";
@@ -194,6 +197,46 @@ router.get("/submissions/:id", async (req, res) => {
   }
 
   res.json(toAdminSubmissionDetail(submission));
+});
+
+router.get("/submissions/:id/download", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      title: true,
+      modelZipPath: true,
+    },
+  });
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  const absoluteZipPath = resolveUploadFilePath(submission.modelZipPath);
+
+  if (!fs.existsSync(absoluteZipPath)) {
+    res.status(404).json({
+      message: "Model ZIP file not found.",
+    });
+    return;
+  }
+
+  const downloadName = getStoredFileName(submission.modelZipPath) || `${submission.title}.zip`;
+  res.download(absoluteZipPath, downloadName);
 });
 
 router.patch("/submissions/:id/approve", async (req, res) => {

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   approveSubmission,
   clearAdminToken,
+  downloadAdminSubmissionZip,
   getAdminSubmissionDetail,
   getAdminSubmissions,
   getAdminToken,
@@ -218,6 +219,34 @@ export function AdminDashboardPage() {
     }
   };
 
+  const handleDownloadZip = async () => {
+    if (!selectedSubmission) {
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const zipBlob = await downloadAdminSubmissionZip(selectedSubmission.id);
+      const objectUrl = window.URL.createObjectURL(zipBlob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = objectUrl;
+      downloadLink.download = selectedSubmission.modelZipName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setErrorMessage(getDashboardErrorMessage(error));
+    }
+  };
+
   return (
     <section className="page-grid admin-grid">
       <div className="card">
@@ -348,6 +377,15 @@ export function AdminDashboardPage() {
                 ) : null}
 
                 <div className="actions">
+                  <button
+                    className="button-link secondary"
+                    type="button"
+                    onClick={handleDownloadZip}
+                    disabled={isSubmittingAction}
+                  >
+                    Download ZIP
+                  </button>
+
                   {selectedSubmission.status === "pending" ? (
                     <button
                       className="button-link"

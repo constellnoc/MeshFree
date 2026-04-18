@@ -86,3 +86,12 @@ export async function deleteSubmission(id: number) {
 
   return response.data;
 }
+
+export async function downloadAdminSubmissionZip(id: number) {
+  const response = await http.get<Blob>(`/admin/submissions/${id}/download`, {
+    headers: getAuthHeaders(),
+    responseType: "blob",
+  });
+
+  return response.data;
+}

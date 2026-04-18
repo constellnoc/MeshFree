@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import axios from "axios";
 
@@ -8,6 +8,13 @@ import type { SubmissionResult } from "../types/submission";
 const maxCoverSize = 2 * 1024 * 1024;
 const maxModelZipSize = 20 * 1024 * 1024;
 const allowedCoverExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+const submissionDraftStorageKey = "meshfree_submission_draft";
+
+interface SubmissionDraft {
+  title: string;
+  description: string;
+  contact: string;
+}
 
 function hasAllowedExtension(fileName: string, allowedExtensions: string[]): boolean {
   const lowerCaseName = fileName.toLowerCase();
@@ -24,6 +31,8 @@ function getSubmissionErrorMessage(error: unknown): string {
 
 export function SubmitPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const modelZipInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [contact, setContact] = useState("");
@@ -32,6 +41,41 @@ export function SubmitPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successResult, setSuccessResult] = useState<SubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const storedDraft = localStorage.getItem(submissionDraftStorageKey);
+
+    if (!storedDraft) {
+      return;
+    }
+
+    try {
+      const draft = JSON.parse(storedDraft) as Partial<SubmissionDraft>;
+      setTitle(typeof draft.title === "string" ? draft.title : "");
+      setDescription(typeof draft.description === "string" ? draft.description : "");
+      setContact(typeof draft.contact === "string" ? draft.contact : "");
+    } catch {
+      localStorage.removeItem(submissionDraftStorageKey);
+    }
+  }, []);
+
+  useEffect(() => {
+    const hasDraftContent = Boolean(title || description || contact);
+
+    if (!hasDraftContent) {
+      localStorage.removeItem(submissionDraftStorageKey);
+      return;
+    }
+
+    localStorage.setItem(
+      submissionDraftStorageKey,
+      JSON.stringify({
+        title,
+        description,
+        contact,
+      } satisfies SubmissionDraft),
+    );
+  }, [title, description, contact]);
 
   const handleCoverChange = (event: ChangeEvent<HTMLInputElement>) => {
     setCoverFile(event.target.files?.[0] ?? null);
@@ -103,11 +147,32 @@ export function SubmitPage() {
       setContact("");
       setCoverFile(null);
       setModelZipFile(null);
+      localStorage.removeItem(submissionDraftStorageKey);
       formRef.current?.reset();
     } catch (error) {
       setErrorMessage(getSubmissionErrorMessage(error));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResetDraft = () => {
+    setTitle("");
+    setDescription("");
+    setContact("");
+    setCoverFile(null);
+    setModelZipFile(null);
+    setErrorMessage("");
+    setSuccessResult(null);
+    localStorage.removeItem(submissionDraftStorageKey);
+    formRef.current?.reset();
+
+    if (coverInputRef.current) {
+      coverInputRef.current.value = "";
+    }
+
+    if (modelZipInputRef.current) {
+      modelZipInputRef.current.value = "";
     }
   };
 
@@ -160,6 +225,7 @@ export function SubmitPage() {
           <label className="form-field">
             <span className="form-label">Cover image</span>
             <input
+              ref={coverInputRef}
               className="form-input"
               type="file"
               accept=".jpg,.jpeg,.png,.webp"
@@ -172,6 +238,7 @@ export function SubmitPage() {
           <label className="form-field">
             <span className="form-label">Model ZIP</span>
             <input
+              ref={modelZipInputRef}
               className="form-input"
               type="file"
               accept=".zip,application/zip"
@@ -181,9 +248,24 @@ export function SubmitPage() {
             <span className="form-help">Accepted: ZIP only. Max 20MB.</span>
           </label>
 
-          <button className="button-link" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit for review"}
-          </button>
+          <div className="form-actions">
+            <button
+              className="button-link secondary form-reset-button"
+              type="button"
+              onClick={handleResetDraft}
+              disabled={isSubmitting}
+            >
+              Reset
+            </button>
+            <button className="button-link form-submit-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit for review"}
+            </button>
+          </div>
+
+          <p className="form-help">
+            Text fields are saved locally in this browser. File inputs must be selected again
+            after refresh or reset.
+          </p>
         </form>
       </div>
 
