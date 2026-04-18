@@ -2,6 +2,9 @@
 
 请继续当前项目上下文，并优先参考以下文件：
 
+- `docs/session-notes/20260418_3_homepage-modal-and-motion-progress.md`
+- `docs/session-notes/20260418_2_home-hero-geometry-execution-handoff.md`
+- `docs/session-notes/20260418_1_navigation-structure-and-ui-adjustments.md`
 - `docs/session-notes/20260416_2_deployment-successfully-completed.md`
 - `docs/session-notes/20260416_1_deployment-started-and-docs-refined.md`
 - `docs/session-notes/20260415_1_three-core-loops-completed.md`
