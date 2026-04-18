@@ -1,38 +1,153 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
-const navItems = [
-  { to: "/", label: "Home" },
-  { to: "/submit", label: "Submit" },
-  { to: "/admin/login", label: "Admin Login" },
-  { to: "/admin/dashboard", label: "Admin Dashboard" },
-];
+import { getAdminDisplayName, getAdminToken } from "../api/admin";
+
+function getDocumentTitle(pathname: string, hash: string): string {
+  if (hash === "#gallery" && pathname === "/") {
+    return "MeshFree-Gallery";
+  }
+
+  if (hash === "#about") {
+    return "MeshFree-About";
+  }
+
+  if (pathname === "/") {
+    return "MeshFree-Home";
+  }
+
+  if (pathname === "/submit") {
+    return "MeshFree-Upload";
+  }
+
+  if (pathname === "/admin/login") {
+    return "MeshFree-Sign in";
+  }
+
+  if (pathname === "/admin/dashboard") {
+    return "MeshFree-Dashboard";
+  }
+
+  if (pathname.startsWith("/models/")) {
+    return "MeshFree-Model";
+  }
+
+  return "MeshFree";
+}
 
 export function Layout() {
+  const location = useLocation();
+  const hasAdminToken = Boolean(getAdminToken());
+  const adminDisplayName = getAdminDisplayName();
+
+  useEffect(() => {
+    document.title = getDocumentTitle(location.pathname, location.hash);
+  }, [location.hash, location.pathname]);
+
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+
+    const targetElement = document.getElementById(location.hash.slice(1));
+
+    if (!targetElement) {
+      return;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [location.hash, location.pathname]);
+
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">MeshFree MVP</p>
-          <h1>Public Model Gallery</h1>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <Link className="brand-link" to="/">
+              MeshFree
+            </Link>
+          </div>
+
+          <div className="topbar-center">
+            <nav className="app-nav" aria-label="Primary navigation">
+              <Link
+                className={location.pathname === "/" && location.hash === "#gallery" ? "nav-link nav-link-active" : "nav-link"}
+                to="/#gallery"
+              >
+                Gallery
+              </Link>
+              <div className="nav-search-placeholder" aria-hidden="true">
+                Search
+              </div>
+              <Link
+                className={location.hash === "#about" ? "nav-link nav-link-active" : "nav-link"}
+                to={`${location.pathname}#about`}
+              >
+                About
+              </Link>
+            </nav>
+          </div>
+
+          <div className="topbar-actions">
+            {hasAdminToken ? (
+              <NavLink
+                className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
+                to="/admin/dashboard"
+              >
+                {adminDisplayName ?? "Dashboard"}
+              </NavLink>
+            ) : (
+              <NavLink
+                className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
+                to="/admin/login"
+              >
+                Sign in / Sign up
+              </NavLink>
+            )}
+
+            <Link className="button-link topbar-upload-button" to="/submit">
+              Upload
+            </Link>
+          </div>
         </div>
-        <nav className="app-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? "nav-link nav-link-active" : "nav-link"
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
       </header>
 
       <main className="page-container">
         <Outlet />
       </main>
+
+      <footer id="about" className="site-footer">
+        <p className="footer-about">A lightweight platform for 3D model sharing and review.</p>
+        <div className="footer-links">
+          <a
+            className="footer-link-with-icon"
+            href="https://github.com/constellnoc/MeshFree"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <svg
+              className="footer-link-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="currentColor"
+                d="M12 2C6.48 2 2 6.59 2 12.24c0 4.51 2.87 8.34 6.84 9.69.5.09.68-.22.68-.49 0-.24-.01-1.05-.01-1.91-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.35 1.11 2.92.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.1 0-1.13.39-2.05 1.03-2.77-.1-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.06A9.33 9.33 0 0 1 12 6.84c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.06 2.75-1.06.55 1.42.2 2.47.1 2.73.64.72 1.03 1.64 1.03 2.77 0 3.97-2.35 4.84-4.58 5.09.36.32.68.95.68 1.92 0 1.39-.01 2.5-.01 2.84 0 .27.18.59.69.49A10.04 10.04 0 0 0 22 12.24C22 6.59 17.52 2 12 2Z"
+              />
+            </svg>
+            GitHub
+          </a>
+          <a href="mailto:constellnoc@gmail.com">Contact: constellnoc@gmail.com</a>
+        </div>
+        <p className="footer-meta">Copyright © 2026 Noctiluca</p>
+      </footer>
     </div>
   );
 }

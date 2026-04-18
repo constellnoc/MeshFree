@@ -49,6 +49,11 @@ export function HomePage() {
         </div>
       </div>
 
+      <div id="gallery" className="gallery-anchor">
+        <p className="section-kicker">Gallery</p>
+        <h2>Approved model resources</h2>
+      </div>
+
       {isLoading ? (
         <div className="card">
           <h2>Loading models</h2>

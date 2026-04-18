@@ -33,6 +33,34 @@ export function clearAdminToken() {
   localStorage.removeItem(adminTokenStorageKey);
 }
 
+export function getAdminDisplayName() {
+  const token = getAdminToken();
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const [, payload] = token.split(".");
+
+    if (!payload) {
+      return null;
+    }
+
+    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const paddedPayload = normalizedPayload.padEnd(
+      Math.ceil(normalizedPayload.length / 4) * 4,
+      "=",
+    );
+    const decodedPayload = atob(paddedPayload);
+    const parsedPayload = JSON.parse(decodedPayload) as { username?: unknown };
+
+    return typeof parsedPayload.username === "string" ? parsedPayload.username : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loginAsAdmin(payload: AdminLoginPayload) {
   const response = await http.post<AdminLoginResult>("/admin/login", payload);
   return response.data;
