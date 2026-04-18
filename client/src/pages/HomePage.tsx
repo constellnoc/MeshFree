@@ -73,50 +73,40 @@ export function HomePage() {
     };
   }, []);
 
+  const exitProgress = Math.max((heroScrollProgress - 0.58) / 0.42, 0);
   const heroStyle = {
     "--hero-progress": heroScrollProgress.toFixed(3),
+    "--hero-exit": exitProgress.toFixed(3),
+    "--hero-opacity-fast": Math.max(1 - exitProgress * exitProgress * 1.35, 0).toFixed(3),
   } as CSSProperties;
 
   return (
     <section className="page-stack home-page">
-      <section className="hero-shell" style={heroStyle}>
-        <div className="hero-panel">
-          <div className="hero-copy">
-            <p className="section-kicker">MeshFree</p>
-            <h1>Open resources, open creativity.</h1>
-            <p className="hero-lead">
-              MeshFree is a lightweight platform for browsing, sharing, and
-              reviewing 3D model resources.
-            </p>
-            <p className="hero-support">
-              Browse approved resources with a clean review flow, then move
-              naturally into the public gallery without leaving the page rhythm.
-            </p>
-            <div className="actions">
-              <Link className="button-link" to="/#gallery">
-                Explore gallery
-              </Link>
-              <Link className="button-link secondary" to="/submit">
-                Upload a model
-              </Link>
-            </div>
-          </div>
-
-          <div className="hero-geometry" aria-hidden="true">
-            <div className="geometry-cluster geometry-cluster-primary">
-              <span className="geometry-shape geometry-shape-panel" />
-              <span className="geometry-shape geometry-shape-orb" />
-            </div>
-            <div className="geometry-cluster geometry-cluster-secondary">
-              <span className="geometry-shape geometry-shape-wireframe" />
-              <span className="geometry-shape geometry-shape-bar" />
-            </div>
-          </div>
+      <section id="home-hero" className="hero-shell" style={heroStyle}>
+        <div className="hero-geometry" aria-hidden="true">
+          <span className="geometry-shape geometry-shape-red-haze" />
+          <span className="geometry-shape geometry-shape-yellow-orb" />
+          <span className="geometry-shape geometry-shape-blue-disc" />
+          <span className="geometry-shape geometry-shape-blue-ring" />
+          <span className="geometry-shape geometry-shape-red-bar" />
+          <span className="geometry-shape geometry-shape-yellow-chip" />
         </div>
 
-        <div className="hero-transition">
-          <p className="hero-transition-label">Public resources, quietly curated</p>
-          <div className="hero-transition-line" />
+        <div className="hero-copy">
+          <p className="section-kicker">MeshFree MVP</p>
+          <h1>Open resources, open creativity.</h1>
+          <p className="hero-lead">
+            MeshFree is a lightweight platform for browsing, sharing, and
+            reviewing 3D model resources.
+          </p>
+          <div className="actions hero-actions">
+            <Link className="button-link" to="/#gallery">
+              Browse gallery
+            </Link>
+            <Link className="button-link secondary" to="/upload">
+              Upload
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -130,8 +120,8 @@ export function HomePage() {
           </p>
         </div>
         <div className="actions">
-          <Link className="button-link secondary" to="/submit">
-            Submit a new model
+          <Link className="button-link secondary" to="/upload">
+            Upload a model
           </Link>
         </div>
       </div>

@@ -23,13 +23,13 @@ function hasAllowedExtension(fileName: string, allowedExtensions: string[]): boo
 
 function getSubmissionErrorMessage(error: unknown): string {
   if (axios.isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? "Failed to submit. Please try again.";
+    return error.response?.data?.message ?? "Failed to upload. Please try again.";
   }
 
-  return "Failed to submit. Please try again.";
+  return "Failed to upload. Please try again.";
 }
 
-export function SubmitPage() {
+export function UploadPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const modelZipInputRef = useRef<HTMLInputElement | null>(null);
@@ -177,12 +177,12 @@ export function SubmitPage() {
   };
 
   return (
-    <section className="page-grid submit-grid">
+    <section className="page-grid upload-grid">
       <div className="card">
-        <p className="section-kicker">Public Submission</p>
-        <h2>Submit a model for admin review</h2>
+        <p className="section-kicker">Public Upload</p>
+        <h2>Upload a model for admin review</h2>
         <p>
-          Upload one cover image and one ZIP file. After submission, the resource
+          Upload one cover image and one ZIP file. After upload, the resource
           will stay in <strong>pending</strong> status until the administrator reviews it.
         </p>
 
@@ -257,8 +257,8 @@ export function SubmitPage() {
             >
               Reset
             </button>
-            <button className="button-link form-submit-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit for review"}
+            <button className="button-link form-upload-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Uploading..." : "Upload for review"}
             </button>
           </div>
 
@@ -270,7 +270,7 @@ export function SubmitPage() {
       </div>
 
       <div className="card">
-        <h2>Submission rules</h2>
+        <h2>Upload rules</h2>
         <ul className="plain-list">
           <li>All fields are required.</li>
           <li>Only one cover image and one ZIP file are allowed.</li>
@@ -282,7 +282,7 @@ export function SubmitPage() {
         {successResult ? (
           <div className="form-message success-message">
             <p>{successResult.message}</p>
-            <p>Submission ID: {successResult.submissionId}</p>
+            <p>Upload ID: {successResult.submissionId}</p>
             <p>Status: {successResult.status}</p>
           </div>
         ) : null}

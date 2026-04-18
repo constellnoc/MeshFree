@@ -1,22 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { getAdminDisplayName, getAdminToken } from "../api/admin";
 
-function getDocumentTitle(pathname: string, hash: string): string {
-  if (hash === "#gallery" && pathname === "/") {
-    return "MeshFree-Gallery";
+type HomeSection = "home" | "gallery" | "about";
+
+function getDocumentTitle(pathname: string, hash: string, homeSection: HomeSection): string {
+  if (pathname === "/") {
+    if (homeSection === "gallery") {
+      return "MeshFree-Gallery";
+    }
+
+    if (homeSection === "about") {
+      return "MeshFree-About";
+    }
+
+    return "MeshFree-Home";
   }
 
   if (hash === "#about") {
     return "MeshFree-About";
   }
 
-  if (pathname === "/") {
-    return "MeshFree-Home";
-  }
-
-  if (pathname === "/submit") {
+  if (pathname === "/upload" || pathname === "/submit") {
     return "MeshFree-Upload";
   }
 
@@ -39,10 +45,21 @@ export function Layout() {
   const location = useLocation();
   const hasAdminToken = Boolean(getAdminToken());
   const adminDisplayName = getAdminDisplayName();
+  const [homeSection, setHomeSection] = useState<HomeSection>(() => {
+    if (location.hash === "#gallery") {
+      return "gallery";
+    }
+
+    if (location.hash === "#about") {
+      return "about";
+    }
+
+    return "home";
+  });
 
   useEffect(() => {
-    document.title = getDocumentTitle(location.pathname, location.hash);
-  }, [location.hash, location.pathname]);
+    document.title = getDocumentTitle(location.pathname, location.hash, homeSection);
+  }, [homeSection, location.hash, location.pathname]);
 
   useEffect(() => {
     if (!location.hash) {
@@ -64,6 +81,74 @@ export function Layout() {
     };
   }, [location.hash, location.pathname]);
 
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      return;
+    }
+
+    let animationFrameId = 0;
+
+    const updateHomeSection = () => {
+      animationFrameId = 0;
+
+      const galleryElement = document.getElementById("gallery");
+      const aboutElement = document.getElementById("about");
+      const sectionProbe = window.innerHeight * 0.32;
+
+      let nextSection: HomeSection = "home";
+
+      if (aboutElement && aboutElement.getBoundingClientRect().top <= sectionProbe) {
+        nextSection = "about";
+      } else if (galleryElement && galleryElement.getBoundingClientRect().top <= sectionProbe) {
+        nextSection = "gallery";
+      }
+
+      setHomeSection((currentSection) => {
+        return currentSection === nextSection ? currentSection : nextSection;
+      });
+    };
+
+    const requestUpdate = () => {
+      if (animationFrameId !== 0) {
+        return;
+      }
+
+      animationFrameId = window.requestAnimationFrame(updateHomeSection);
+    };
+
+    requestUpdate();
+
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+
+    return () => {
+      if (animationFrameId !== 0) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+    };
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      return;
+    }
+
+    if (location.hash === "#gallery") {
+      setHomeSection("gallery");
+      return;
+    }
+
+    if (location.hash === "#about") {
+      setHomeSection("about");
+      return;
+    }
+
+    setHomeSection("home");
+  }, [location.hash, location.pathname]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -77,7 +162,7 @@ export function Layout() {
           <div className="topbar-center">
             <nav className="app-nav" aria-label="Primary navigation">
               <Link
-                className={location.pathname === "/" && location.hash === "#gallery" ? "nav-link nav-link-active" : "nav-link"}
+                className={location.pathname === "/" && homeSection === "gallery" ? "nav-link nav-link-active" : "nav-link"}
                 to="/#gallery"
               >
                 Gallery
@@ -86,7 +171,11 @@ export function Layout() {
                 Search
               </div>
               <Link
-                className={location.hash === "#about" ? "nav-link nav-link-active" : "nav-link"}
+                className={
+                  (location.pathname === "/" && homeSection === "about") || location.hash === "#about"
+                    ? "nav-link nav-link-active"
+                    : "nav-link"
+                }
                 to={`${location.pathname}#about`}
               >
                 About
@@ -111,7 +200,7 @@ export function Layout() {
               </NavLink>
             )}
 
-            <Link className="button-link topbar-upload-button" to="/submit">
+            <Link className="button-link topbar-upload-button" to="/upload">
               Upload
             </Link>
           </div>
