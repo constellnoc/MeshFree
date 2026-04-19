@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { Fragment, Suspense, lazy, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getApprovedModelDetail } from "../api/models";
 import type { ModelDetail } from "../types/model";
+
+const LazyModelPreviewViewer = lazy(() => import("../components/ModelPreviewViewer"));
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -22,6 +24,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
   const [model, setModel] = useState<ModelDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const isModal = presentation === "modal";
 
   useEffect(() => {
@@ -49,12 +52,21 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
   }, [id]);
 
   useEffect(() => {
-    if (!isModal) {
+    setIsViewerOpen(false);
+  }, [id]);
+
+  useEffect(() => {
+    if (!isModal && !isViewerOpen) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (isViewerOpen) {
+          setIsViewerOpen(false);
+          return;
+        }
+
         navigate(-1);
       }
     };
@@ -67,7 +79,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
       document.body.style.overflow = overflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isModal, navigate]);
+  }, [isModal, isViewerOpen, navigate]);
 
   const handleClose = () => {
     if (window.history.length > 1) {
@@ -134,7 +146,16 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
   const detailContent = (
     <section className={isModal ? "page-grid detail-grid detail-grid-modal" : "page-grid detail-grid"}>
       <div className="card detail-cover-card">
-        <img src={model.coverImageUrl} alt={model.title} className="detail-cover" />
+        <div className="detail-preview-surface">
+          <img src={model.coverImageUrl} alt={model.title} className="detail-cover" />
+          {model.previewModelUrl ? (
+            <div className="detail-preview-overlay">
+              <button className="detail-preview-trigger" type="button" onClick={() => setIsViewerOpen(true)}>
+                Preview
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="card detail-card">
@@ -159,17 +180,54 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
   );
 
   if (!isModal) {
-    return detailContent;
+    return (
+      <>
+        {detailContent}
+        {isViewerOpen && model.previewModelUrl ? (
+          <div className="viewer-modal-overlay" onClick={() => setIsViewerOpen(false)}>
+            <div className="viewer-modal-content" onClick={(event) => event.stopPropagation()}>
+              <Suspense
+                fallback={
+                  <div className="viewer-modal-loading" role="status" aria-live="polite">
+                    <p>Preparing 3D preview...</p>
+                  </div>
+                }
+              >
+                <LazyModelPreviewViewer modelUrl={model.previewModelUrl} title={model.title} onClose={() => setIsViewerOpen(false)} />
+              </Suspense>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
   }
 
   return (
-    <div className="detail-modal-overlay" onClick={handleClose}>
-      <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
-        <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
-          <span className="detail-modal-close-icon" aria-hidden="true" />
-        </button>
-        {detailContent}
+    <Fragment>
+      <div className="detail-modal-overlay" onClick={handleClose}>
+        <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
+          <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+            <span className="detail-modal-close-icon" aria-hidden="true" />
+          </button>
+          {detailContent}
+        </div>
       </div>
-    </div>
+
+      {isViewerOpen && model.previewModelUrl ? (
+        <div className="viewer-modal-overlay" onClick={() => setIsViewerOpen(false)}>
+          <div className="viewer-modal-content" onClick={(event) => event.stopPropagation()}>
+            <Suspense
+              fallback={
+                <div className="viewer-modal-loading" role="status" aria-live="polite">
+                  <p>Preparing 3D preview...</p>
+                </div>
+              }
+            >
+              <LazyModelPreviewViewer modelUrl={model.previewModelUrl} title={model.title} onClose={() => setIsViewerOpen(false)} />
+            </Suspense>
+          </div>
+        </div>
+      ) : null}
+    </Fragment>
   );
 }

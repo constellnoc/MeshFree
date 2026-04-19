@@ -362,6 +362,7 @@ router.delete("/submissions/:id", async (req, res) => {
     select: {
       coverImagePath: true,
       modelZipPath: true,
+      previewModelPath: true,
     },
   });
 
@@ -378,7 +379,11 @@ router.delete("/submissions/:id", async (req, res) => {
     },
   });
 
-  for (const filePath of [submission.coverImagePath, submission.modelZipPath]) {
+  for (const filePath of [submission.coverImagePath, submission.modelZipPath, submission.previewModelPath]) {
+    if (!filePath) {
+      continue;
+    }
+
     try {
       removeUploadFile(filePath);
     } catch (error) {

@@ -27,6 +27,20 @@ function toModelSummary(submission: {
   };
 }
 
+function toModelDetail(submission: {
+  id: number;
+  title: string;
+  description: string;
+  coverImagePath: string;
+  previewModelPath: string | null;
+  createdAt: Date;
+}) {
+  return {
+    ...toModelSummary(submission),
+    previewModelUrl: submission.previewModelPath ? toPublicAssetUrl(submission.previewModelPath) : null,
+  };
+}
+
 router.get("/", async (_req, res) => {
   const submissions = await prisma.submission.findMany({
     where: {
@@ -67,6 +81,7 @@ router.get("/:id", async (req, res) => {
       title: true,
       description: true,
       coverImagePath: true,
+      previewModelPath: true,
       createdAt: true,
     },
   });
@@ -78,7 +93,7 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
-  res.json(toModelSummary(submission));
+  res.json(toModelDetail(submission));
 });
 
 router.get("/:id/download", async (req, res) => {

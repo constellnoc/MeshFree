@@ -6,4 +6,6 @@ export interface ModelSummary {
   createdAt: string;
 }
 
-export type ModelDetail = ModelSummary;
+export interface ModelDetail extends ModelSummary {
+  previewModelUrl: string | null;
+}
