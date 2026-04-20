@@ -7,6 +7,7 @@ import express from "express";
 import adminRoutes from "./routes/admin";
 import modelRoutes from "./routes/models";
 import submissionRoutes from "./routes/submissions";
+import tagRoutes from "./routes/tags";
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/models", modelRoutes);
+app.use("/api/tags", tagRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/admin", adminRoutes);
 

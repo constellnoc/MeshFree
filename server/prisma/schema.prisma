@@ -18,6 +18,18 @@ enum SubmissionStatus {
   rejected
 }
 
+enum TagScopeLevel {
+  broad
+  medium
+  specific
+}
+
+enum RawTagStatus {
+  pending
+  resolved
+  ignored
+}
+
 model Admin {
   id           Int      @id @default(autoincrement())
   username     String   @unique
@@ -40,14 +52,19 @@ model Submission {
   reviewedAt     DateTime?
   updatedAt      DateTime         @updatedAt
   tags           SubmissionTag[]
+  rawTags        SubmissionRawTag[]
 }
 
 model Tag {
-  id          Int             @id @default(autoincrement())
-  name        String          @unique
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  submissions SubmissionTag[]
+  id               Int                @id @default(autoincrement())
+  name             String             @unique
+  scopeLevel       TagScopeLevel      @default(medium)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  submissions      SubmissionTag[]
+  translations     TagTranslation[]
+  aliases          TagAlias[]
+  resolvedRawTags  SubmissionRawTag[] @relation("ResolvedRawTag")
 }
 
 model SubmissionTag {
@@ -58,4 +75,48 @@ model SubmissionTag {
 
   @@id([submissionId, tagId])
   @@index([tagId])
+}
+
+model TagTranslation {
+  id                    Int      @id @default(autoincrement())
+  tagId                 Int
+  locale                String
+  displayName           String
+  normalizedDisplayName String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  tag                   Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+  @@index([locale, normalizedDisplayName])
+}
+
+model TagAlias {
+  id              Int      @id @default(autoincrement())
+  tagId           Int
+  locale          String
+  value           String
+  normalizedValue String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tag             Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([locale, normalizedValue])
+  @@index([tagId])
+}
+
+model SubmissionRawTag {
+  id              Int          @id @default(autoincrement())
+  submissionId    Int
+  resolvedTagId   Int?
+  value           String
+  normalizedValue String
+  status          RawTagStatus @default(pending)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  submission      Submission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  resolvedTag     Tag?         @relation("ResolvedRawTag", fields: [resolvedTagId], references: [id], onDelete: SetNull)
+
+  @@index([submissionId, status])
+  @@index([normalizedValue])
 }

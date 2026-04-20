@@ -1,3 +1,5 @@
+import type { AdminRawTag, PublicTag } from "./tag";
+
 export type AdminSubmissionStatus = "pending" | "approved" | "rejected";
 
 export interface AdminLoginPayload {
@@ -20,9 +22,10 @@ export interface AdminSubmissionSummary {
   rejectReason: string | null;
   createdAt: string;
   reviewedAt: string | null;
-  tags: string[];
+  tags: PublicTag[];
 }
 
 export interface AdminSubmissionDetail extends AdminSubmissionSummary {
   modelZipName: string;
+  rawTags: AdminRawTag[];
 }

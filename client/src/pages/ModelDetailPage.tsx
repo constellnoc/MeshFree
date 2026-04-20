@@ -2,6 +2,7 @@ import { Fragment, Suspense, lazy, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getApprovedModelDetail } from "../api/models";
+import { currentTagLocale, getScopeLevelClassName } from "../lib/tags";
 import type { ModelDetail } from "../types/model";
 
 const LazyModelPreviewViewer = lazy(() => import("../components/ModelPreviewViewer"));
@@ -36,7 +37,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
       }
 
       try {
-        const data = await getApprovedModelDetail(id);
+        const data = await getApprovedModelDetail(id, currentTagLocale);
         setModel(data);
         setErrorMessage("");
       } catch (error) {
@@ -167,8 +168,12 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
         {model.tags.length > 0 ? (
           <div className="selected-tag-list model-tag-list">
             {model.tags.map((tag) => (
-              <Link key={tag} className="selected-tag-chip" to={`/?tag=${encodeURIComponent(tag)}#gallery`}>
-                {tag}
+              <Link
+                key={tag.slug}
+                className={`selected-tag-chip ${getScopeLevelClassName(tag.scopeLevel)}`}
+                to={`/?tag=${encodeURIComponent(tag.slug)}#gallery`}
+              >
+                {tag.label}
               </Link>
             ))}
           </div>

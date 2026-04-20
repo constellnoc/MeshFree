@@ -3,12 +3,15 @@ import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import axios from "axios";
 
 import { createSubmission } from "../api/submissions";
+import { getPublicTags } from "../api/tags";
 import {
-  addTagToList,
-  maxTagsPerSubmission,
-  recommendedTags,
-  validateTagList,
+  addSuggestedTagToList,
+  currentTagLocale,
+  getScopeLevelClassName,
+  maxSelectedTagsPerSubmission,
+  validateSuggestedTagList,
 } from "../lib/tags";
+import type { PublicTag } from "../types/tag";
 import type { SubmissionResult } from "../types/submission";
 
 const maxCoverSize = 2 * 1024 * 1024;
@@ -20,7 +23,8 @@ interface SubmissionDraft {
   title: string;
   description: string;
   contact: string;
-  tags: string[];
+  selectedTagSlugs: string[];
+  suggestedTags: string[];
 }
 
 function hasAllowedExtension(fileName: string, allowedExtensions: string[]): boolean {
@@ -40,16 +44,31 @@ export function UploadPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const modelZipInputRef = useRef<HTMLInputElement | null>(null);
+  const [availableTags, setAvailableTags] = useState<PublicTag[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [contact, setContact] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [selectedTagSlugs, setSelectedTagSlugs] = useState<string[]>([]);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [modelZipFile, setModelZipFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successResult, setSuccessResult] = useState<SubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const tags = await getPublicTags({ locale: currentTagLocale });
+        setAvailableTags(tags);
+      } catch (error) {
+        console.error("Failed to load preset tags.", error);
+      }
+    };
+
+    void loadTags();
+  }, []);
 
   useEffect(() => {
     const storedDraft = localStorage.getItem(submissionDraftStorageKey);
@@ -63,14 +82,25 @@ export function UploadPage() {
       setTitle(typeof draft.title === "string" ? draft.title : "");
       setDescription(typeof draft.description === "string" ? draft.description : "");
       setContact(typeof draft.contact === "string" ? draft.contact : "");
-      setTags(Array.isArray(draft.tags) ? draft.tags.filter((tag): tag is string => typeof tag === "string") : []);
+      setSelectedTagSlugs(
+        Array.isArray(draft.selectedTagSlugs)
+          ? draft.selectedTagSlugs.filter((tag): tag is string => typeof tag === "string")
+          : [],
+      );
+      setSuggestedTags(
+        Array.isArray(draft.suggestedTags)
+          ? draft.suggestedTags.filter((tag): tag is string => typeof tag === "string")
+          : [],
+      );
     } catch {
       localStorage.removeItem(submissionDraftStorageKey);
     }
   }, []);
 
   useEffect(() => {
-    const hasDraftContent = Boolean(title || description || contact || tags.length > 0);
+    const hasDraftContent = Boolean(
+      title || description || contact || selectedTagSlugs.length > 0 || suggestedTags.length > 0,
+    );
 
     if (!hasDraftContent) {
       localStorage.removeItem(submissionDraftStorageKey);
@@ -83,10 +113,11 @@ export function UploadPage() {
         title,
         description,
         contact,
-        tags,
+        selectedTagSlugs,
+        suggestedTags,
       } satisfies SubmissionDraft),
     );
-  }, [contact, description, tags, title]);
+  }, [contact, description, selectedTagSlugs, suggestedTags, title]);
 
   const handleCoverChange = (event: ChangeEvent<HTMLInputElement>) => {
     setCoverFile(event.target.files?.[0] ?? null);
@@ -96,19 +127,34 @@ export function UploadPage() {
     setModelZipFile(event.target.files?.[0] ?? null);
   };
 
+  const handleToggleSelectedTag = (tagSlug: string) => {
+    setSelectedTagSlugs((currentTags) => {
+      if (currentTags.includes(tagSlug)) {
+        return currentTags.filter((tag) => tag !== tagSlug);
+      }
+
+      if (currentTags.length >= maxSelectedTagsPerSubmission) {
+        setErrorMessage(`Please select up to ${maxSelectedTagsPerSubmission} preset tags.`);
+        return currentTags;
+      }
+
+      return [...currentTags, tagSlug];
+    });
+  };
+
   const handleAddTag = (rawTag: string) => {
-    const nextState = addTagToList(tags, rawTag);
+    const nextState = addSuggestedTagToList(suggestedTags, rawTag);
 
     setErrorMessage(nextState.error);
 
-    if (nextState.tags !== tags) {
-      setTags(nextState.tags);
+    if (nextState.tags !== suggestedTags) {
+      setSuggestedTags(nextState.tags);
       setTagInput("");
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove));
+    setSuggestedTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove));
   };
 
   const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -145,7 +191,11 @@ export function UploadPage() {
       return "Model ZIP must not exceed 20MB.";
     }
 
-    const tagValidationMessage = validateTagList(tags);
+    if (selectedTagSlugs.length > maxSelectedTagsPerSubmission) {
+      return `Please select up to ${maxSelectedTagsPerSubmission} preset tags.`;
+    }
+
+    const tagValidationMessage = validateSuggestedTagList(suggestedTags);
 
     if (tagValidationMessage) {
       return tagValidationMessage;
@@ -173,7 +223,8 @@ export function UploadPage() {
     formData.append("title", title.trim());
     formData.append("description", description.trim());
     formData.append("contact", contact.trim());
-    formData.append("tags", JSON.stringify(tags));
+    formData.append("selectedTagSlugs", JSON.stringify(selectedTagSlugs));
+    formData.append("suggestedTags", JSON.stringify(suggestedTags));
     formData.append("cover", coverFile);
     formData.append("modelZip", modelZipFile);
 
@@ -187,7 +238,8 @@ export function UploadPage() {
       setTitle("");
       setDescription("");
       setContact("");
-      setTags([]);
+      setSelectedTagSlugs([]);
+      setSuggestedTags([]);
       setTagInput("");
       setCoverFile(null);
       setModelZipFile(null);
@@ -204,7 +256,8 @@ export function UploadPage() {
     setTitle("");
     setDescription("");
     setContact("");
-    setTags([]);
+    setSelectedTagSlugs([]);
+    setSuggestedTags([]);
     setTagInput("");
     setCoverFile(null);
     setModelZipFile(null);
@@ -269,7 +322,34 @@ export function UploadPage() {
           </label>
 
           <div className="form-field">
-            <span className="form-label">Tags</span>
+            <span className="form-label">Preset tags</span>
+            <span className="form-help">
+              Select up to {maxSelectedTagsPerSubmission} public tags. These are the tags that can
+              become visible after review.
+            </span>
+            <div className="tag-chip-list">
+              {availableTags.map((tag) => (
+                <button
+                  key={tag.slug}
+                  className={[
+                    "tag-chip",
+                    getScopeLevelClassName(tag.scopeLevel),
+                    selectedTagSlugs.includes(tag.slug) ? "tag-chip-active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  type="button"
+                  onClick={() => handleToggleSelectedTag(tag.slug)}
+                  disabled={isSubmitting}
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-field">
+            <span className="form-label">Suggested tags</span>
             <div className="tag-input-row">
               <input
                 className="form-input"
@@ -277,37 +357,25 @@ export function UploadPage() {
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}
                 onKeyDown={handleTagInputKeyDown}
-                placeholder="Type a tag and press Enter"
-                disabled={isSubmitting || tags.length >= maxTagsPerSubmission}
+                placeholder="Suggest a new tag for admin review"
+                disabled={isSubmitting}
               />
               <button
                 className="button-link secondary"
                 type="button"
                 onClick={() => handleAddTag(tagInput)}
-                disabled={isSubmitting || !tagInput.trim() || tags.length >= maxTagsPerSubmission}
+                disabled={isSubmitting || !tagInput.trim()}
               >
-                Add tag
+                Add suggestion
               </button>
             </div>
             <span className="form-help">
-              Use up to {maxTagsPerSubmission} tags. You can pick recommended tags or add your own.
+              Suggested tags stay private. Only the administrator can decide whether they become a
+              new public tag or an alias for an existing tag.
             </span>
-            <div className="tag-chip-list">
-              {recommendedTags.map((recommendedTag) => (
-                <button
-                  key={recommendedTag}
-                  className={tags.includes(recommendedTag) ? "tag-chip tag-chip-active" : "tag-chip"}
-                  type="button"
-                  onClick={() => handleAddTag(recommendedTag)}
-                  disabled={isSubmitting}
-                >
-                  {recommendedTag}
-                </button>
-              ))}
-            </div>
-            {tags.length > 0 ? (
+            {suggestedTags.length > 0 ? (
               <div className="selected-tag-list" aria-live="polite">
-                {tags.map((tag) => (
+                {suggestedTags.map((tag) => (
                   <button
                     key={tag}
                     className="selected-tag-chip"
@@ -364,8 +432,8 @@ export function UploadPage() {
           </div>
 
           <p className="form-help">
-            Text fields and selected tags are saved locally in this browser. File inputs must be selected again
-            after refresh or reset.
+            Text fields, selected preset tags, and suggested tags are saved locally in this browser.
+            File inputs must be selected again after refresh or reset.
           </p>
         </form>
       </div>

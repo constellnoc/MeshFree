@@ -13,13 +13,10 @@ import {
   deleteSubmission,
   updateSubmissionTags,
 } from "../api/admin";
-import {
-  addTagToList,
-  maxTagsPerSubmission,
-  recommendedTags,
-  validateTagList,
-} from "../lib/tags";
+import { getPublicTags } from "../api/tags";
+import { currentTagLocale, getScopeLevelClassName, maxSelectedTagsPerSubmission } from "../lib/tags";
 import type { AdminSubmissionDetail, AdminSubmissionStatus, AdminSubmissionSummary } from "../types/admin";
+import type { PublicTag } from "../types/tag";
 
 type SubmissionFilter = "all" | AdminSubmissionStatus;
 
@@ -50,12 +47,12 @@ function getDashboardErrorMessage(error: unknown): string {
 export function AdminDashboardPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<SubmissionFilter>("pending");
+  const [availableTags, setAvailableTags] = useState<PublicTag[]>([]);
   const [submissions, setSubmissions] = useState<AdminSubmissionSummary[]>([]);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<AdminSubmissionDetail | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [editableTags, setEditableTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
+  const [selectedTagSlugs, setSelectedTagSlugs] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -71,6 +68,19 @@ export function AdminDashboardPage() {
     clearAdminToken();
     navigate("/admin/login");
   };
+
+  useEffect(() => {
+    const loadAvailableTags = async () => {
+      try {
+        const tags = await getPublicTags({ locale: currentTagLocale });
+        setAvailableTags(tags);
+      } catch (error) {
+        setErrorMessage(getDashboardErrorMessage(error));
+      }
+    };
+
+    void loadAvailableTags();
+  }, []);
 
   const loadSubmissions = async (preferredSubmissionId?: number | null) => {
     if (!getAdminToken()) {
@@ -95,8 +105,7 @@ export function AdminDashboardPage() {
       if (!nextSelectedId) {
         setSelectedSubmission(null);
         setRejectReason("");
-        setEditableTags([]);
-        setTagInput("");
+        setSelectedTagSlugs([]);
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -120,8 +129,7 @@ export function AdminDashboardPage() {
       if (!selectedSubmissionId) {
         setSelectedSubmission(null);
         setRejectReason("");
-        setEditableTags([]);
-        setTagInput("");
+        setSelectedTagSlugs([]);
         return;
       }
 
@@ -131,8 +139,7 @@ export function AdminDashboardPage() {
         const detail = await getAdminSubmissionDetail(selectedSubmissionId);
         setSelectedSubmission(detail);
         setRejectReason(detail.rejectReason ?? "");
-        setEditableTags(detail.tags);
-        setTagInput("");
+        setSelectedTagSlugs(detail.tags.map((tag) => tag.slug));
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           handleUnauthorized();
@@ -154,18 +161,19 @@ export function AdminDashboardPage() {
     navigate("/admin/login");
   };
 
-  const handleAddTag = (rawTag: string) => {
-    const nextState = addTagToList(editableTags, rawTag);
-    setErrorMessage(nextState.error);
+  const handleToggleSelectedTag = (tagSlug: string) => {
+    setSelectedTagSlugs((currentTags) => {
+      if (currentTags.includes(tagSlug)) {
+        return currentTags.filter((tag) => tag !== tagSlug);
+      }
 
-    if (nextState.tags !== editableTags) {
-      setEditableTags(nextState.tags);
-      setTagInput("");
-    }
-  };
+      if (currentTags.length >= maxSelectedTagsPerSubmission) {
+        setErrorMessage(`Please select up to ${maxSelectedTagsPerSubmission} public tags.`);
+        return currentTags;
+      }
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    setEditableTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove));
+      return [...currentTags, tagSlug];
+    });
   };
 
   const handleSaveTags = async () => {
@@ -173,10 +181,8 @@ export function AdminDashboardPage() {
       return;
     }
 
-    const tagValidationMessage = validateTagList(editableTags);
-
-    if (tagValidationMessage) {
-      setErrorMessage(tagValidationMessage);
+    if (selectedTagSlugs.length > maxSelectedTagsPerSubmission) {
+      setErrorMessage(`Please select up to ${maxSelectedTagsPerSubmission} public tags.`);
       return;
     }
 
@@ -185,9 +191,9 @@ export function AdminDashboardPage() {
     setSuccessMessage("");
 
     try {
-      const result = await updateSubmissionTags(selectedSubmission.id, editableTags);
+      const result = await updateSubmissionTags(selectedSubmission.id, selectedTagSlugs);
       setSelectedSubmission(result.submission);
-      setEditableTags(result.submission.tags);
+      setSelectedTagSlugs(result.submission.tags.map((tag) => tag.slug));
       setSuccessMessage(result.message);
       await loadSubmissions(selectedSubmission.id);
     } catch (error) {
@@ -370,8 +376,11 @@ export function AdminDashboardPage() {
                 {submission.tags.length > 0 ? (
                   <div className="selected-tag-list model-tag-list">
                     {submission.tags.map((tag) => (
-                      <span key={tag} className="selected-tag-chip">
-                        {tag}
+                      <span
+                        key={tag.slug}
+                        className={`selected-tag-chip ${getScopeLevelClassName(tag.scopeLevel)}`}
+                      >
+                        {tag.label}
                       </span>
                     ))}
                   </div>
@@ -436,58 +445,43 @@ export function AdminDashboardPage() {
                 </div>
 
                 <div className="form-field">
-                  <span className="form-label">Tags</span>
-                  <div className="tag-input-row">
-                    <input
-                      className="form-input"
-                      type="text"
-                      value={tagInput}
-                      onChange={(event) => setTagInput(event.target.value)}
-                      placeholder="Add a tag"
-                      disabled={isSubmittingAction || editableTags.length >= maxTagsPerSubmission}
-                    />
-                    <button
-                      className="button-link secondary"
-                      type="button"
-                      onClick={() => handleAddTag(tagInput)}
-                      disabled={isSubmittingAction || !tagInput.trim() || editableTags.length >= maxTagsPerSubmission}
-                    >
-                      Add tag
-                    </button>
-                  </div>
+                  <span className="form-label">Public tags</span>
                   <span className="form-help">
-                    Admins can refine up to {maxTagsPerSubmission} tags before or after review.
+                    Choose up to {maxSelectedTagsPerSubmission} public tags. These are the only
+                    tags visible to visitors after approval.
                   </span>
                   <div className="tag-chip-list">
-                    {recommendedTags.map((tag) => (
+                    {availableTags.map((tag) => (
                       <button
-                        key={tag}
-                        className={editableTags.includes(tag) ? "tag-chip tag-chip-active" : "tag-chip"}
+                        key={tag.slug}
+                        className={[
+                          "tag-chip",
+                          getScopeLevelClassName(tag.scopeLevel),
+                          selectedTagSlugs.includes(tag.slug) ? "tag-chip-active" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                         type="button"
-                        onClick={() => handleAddTag(tag)}
+                        onClick={() => handleToggleSelectedTag(tag.slug)}
                         disabled={isSubmittingAction}
                       >
-                        {tag}
+                        {tag.label}
                       </button>
                     ))}
                   </div>
-                  {editableTags.length > 0 ? (
+                  {selectedSubmission.tags.length > 0 ? (
                     <div className="selected-tag-list">
-                      {editableTags.map((tag) => (
-                        <button
-                          key={tag}
-                          className="selected-tag-chip"
-                          type="button"
-                          onClick={() => handleRemoveTag(tag)}
-                          disabled={isSubmittingAction}
+                      {selectedSubmission.tags.map((tag) => (
+                        <span
+                          key={tag.slug}
+                          className={`selected-tag-chip ${getScopeLevelClassName(tag.scopeLevel)}`}
                         >
-                          {tag}
-                          <span aria-hidden="true"> ×</span>
-                        </button>
+                          {tag.label}
+                        </span>
                       ))}
                     </div>
                   ) : (
-                    <p className="form-help">No tags saved yet.</p>
+                    <p className="form-help">No public tags saved yet.</p>
                   )}
                   <div className="actions">
                     <button
@@ -499,6 +493,24 @@ export function AdminDashboardPage() {
                       Save tags
                     </button>
                   </div>
+                </div>
+
+                <div className="form-field">
+                  <span className="form-label">Private suggested tags</span>
+                  <span className="form-help">
+                    These suggestions are visible only to the administrator until they are reviewed.
+                  </span>
+                  {selectedSubmission.rawTags.length > 0 ? (
+                    <div className="selected-tag-list">
+                      {selectedSubmission.rawTags.map((rawTag) => (
+                        <span key={rawTag.id} className="selected-tag-chip raw-tag-chip">
+                          {rawTag.value}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="form-help">No private tag suggestions were submitted.</p>
+                  )}
                 </div>
 
                 {selectedSubmission.status === "pending" ? (

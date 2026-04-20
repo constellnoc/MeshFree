@@ -4,7 +4,12 @@ import { Router } from "express";
 
 import { InvalidZipArchiveError, extractPreviewModelFromZip } from "../lib/modelPreview";
 import prisma from "../lib/prisma";
-import { InvalidSubmissionTagsError, normalizeAndValidateTags } from "../lib/tags";
+import {
+  InvalidSubmissionTagsError,
+  normalizeAndValidateSelectedTagSlugs,
+  normalizeAndValidateSuggestedTags,
+  syncPresetTags,
+} from "../lib/tags";
 import { removeUploadFile, toRelativeUploadPath } from "../lib/uploads";
 import { createRateLimitMiddleware } from "../middleware/rateLimit";
 import { uploadSubmissionFiles } from "../middleware/upload";
@@ -53,16 +58,39 @@ function isValidZipFile(file: Express.Multer.File): boolean {
 function buildSubmissionTagCreateInput(tags: string[]) {
   return tags.map((tagName) => ({
     tag: {
-      connectOrCreate: {
-        where: {
-          name: tagName,
-        },
-        create: {
-          name: tagName,
-        },
+      connect: {
+        name: tagName,
       },
     },
   }));
+}
+
+function buildSubmissionRawTagCreateInput(tags: string[]) {
+  return tags.map((tagValue) => ({
+    value: tagValue,
+    normalizedValue: tagValue,
+  }));
+}
+
+async function assertTagSlugsExist(tagSlugs: string[]) {
+  if (tagSlugs.length === 0) {
+    return;
+  }
+
+  const existingTags = await prisma.tag.findMany({
+    where: {
+      name: {
+        in: tagSlugs,
+      },
+    },
+    select: {
+      name: true,
+    },
+  });
+
+  if (existingTags.length !== tagSlugs.length) {
+    throw new InvalidSubmissionTagsError("One or more selected tags are no longer available.");
+  }
 }
 
 router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) => {
@@ -72,7 +100,8 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
   const title = trimTextField(req.body.title);
   const description = trimTextField(req.body.description);
   const contact = trimTextField(req.body.contact);
-  let tags: string[] = [];
+  let selectedTagSlugs: string[] = [];
+  let suggestedTags: string[] = [];
   let previewModelPath: string | null = null;
 
   if (!title || !description || !contact || !coverFile || !modelZipFile) {
@@ -100,7 +129,10 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
   }
 
   try {
-    tags = normalizeAndValidateTags(req.body.tags);
+    await syncPresetTags(prisma);
+    selectedTagSlugs = normalizeAndValidateSelectedTagSlugs(req.body.selectedTagSlugs);
+    suggestedTags = normalizeAndValidateSuggestedTags(req.body.suggestedTags ?? req.body.tags);
+    await assertTagSlugsExist(selectedTagSlugs);
     previewModelPath = extractPreviewModelFromZip(modelZipFile.path);
 
     const submission = await prisma.submission.create({
@@ -111,10 +143,17 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
         coverImagePath: toRelativeUploadPath(coverFile.path),
         modelZipPath: toRelativeUploadPath(modelZipFile.path),
         previewModelPath,
-        ...(tags.length > 0
+        ...(selectedTagSlugs.length > 0
           ? {
               tags: {
-                create: buildSubmissionTagCreateInput(tags),
+                create: buildSubmissionTagCreateInput(selectedTagSlugs),
+              },
+            }
+          : {}),
+        ...(suggestedTags.length > 0
+          ? {
+              rawTags: {
+                create: buildSubmissionRawTagCreateInput(suggestedTags),
               },
             }
           : {}),

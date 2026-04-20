@@ -69,7 +69,7 @@ export async function loginAsAdmin(payload: AdminLoginPayload) {
 export async function getAdminSubmissions(status?: AdminSubmissionStatus) {
   const response = await http.get<AdminSubmissionSummary[]>("/admin/submissions", {
     headers: getAuthHeaders(),
-    params: status ? { status } : undefined,
+    params: status ? { status, locale: "en" } : { locale: "en" },
   });
 
   return response.data;
@@ -78,6 +78,7 @@ export async function getAdminSubmissions(status?: AdminSubmissionStatus) {
 export async function getAdminSubmissionDetail(id: number) {
   const response = await http.get<AdminSubmissionDetail>(`/admin/submissions/${id}`, {
     headers: getAuthHeaders(),
+    params: { locale: "en" },
   });
 
   return response.data;
@@ -115,15 +116,16 @@ export async function deleteSubmission(id: number) {
   return response.data;
 }
 
-export async function updateSubmissionTags(id: number, tags: string[]) {
+export async function updateSubmissionTags(id: number, selectedTagSlugs: string[]) {
   const response = await http.patch<{
     message: string;
     submission: AdminSubmissionDetail;
   }>(
     `/admin/submissions/${id}/tags`,
-    { tags },
+    { selectedTagSlugs },
     {
       headers: getAuthHeaders(),
+      params: { locale: "en" },
     },
   );
 

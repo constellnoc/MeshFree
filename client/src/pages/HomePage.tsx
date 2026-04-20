@@ -2,8 +2,10 @@ import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
 import { getApprovedModels } from "../api/models";
-import { recommendedTags } from "../lib/tags";
+import { getPublicTags } from "../api/tags";
+import { currentTagLocale, getScopeLevelClassName } from "../lib/tags";
 import type { ModelSummary } from "../types/model";
+import type { PublicTag } from "../types/tag";
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -17,6 +19,7 @@ export function HomePage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [models, setModels] = useState<ModelSummary[]>([]);
+  const [availableTags, setAvailableTags] = useState<PublicTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
@@ -37,6 +40,7 @@ export function HomePage() {
         const data = await getApprovedModels({
           ...(activeQuery ? { q: activeQuery } : {}),
           ...(activeTag ? { tag: activeTag } : {}),
+          locale: currentTagLocale,
         });
         setModels(data);
         setErrorMessage("");
@@ -49,6 +53,19 @@ export function HomePage() {
 
     void loadModels();
   }, [activeQuery, activeTag]);
+
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const tags = await getPublicTags({ locale: currentTagLocale });
+        setAvailableTags(tags);
+      } catch (error) {
+        console.error("Failed to load public tags.", error);
+      }
+    };
+
+    void loadTags();
+  }, []);
 
   useEffect(() => {
     let animationFrameId = 0;
@@ -197,14 +214,20 @@ export function HomePage() {
           </div>
 
           <div className="tag-chip-list">
-            {recommendedTags.map((tag) => (
+            {availableTags.map((tag) => (
               <button
-                key={tag}
-                className={activeTag === tag ? "tag-chip tag-chip-active" : "tag-chip"}
+                key={tag.slug}
+                className={[
+                  "tag-chip",
+                  getScopeLevelClassName(tag.scopeLevel),
+                  activeTag === tag.slug ? "tag-chip-active" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 type="button"
-                onClick={() => handleTagFilterToggle(tag)}
+                onClick={() => handleTagFilterToggle(tag.slug)}
               >
-                {tag}
+                {tag.label}
               </button>
             ))}
           </div>
@@ -266,15 +289,21 @@ export function HomePage() {
                   <div className="selected-tag-list model-tag-list">
                     {model.tags.map((tag) => (
                       <button
-                        key={tag}
-                        className={activeTag === tag ? "selected-tag-chip selected-tag-chip-active" : "selected-tag-chip"}
+                        key={tag.slug}
+                        className={[
+                          "selected-tag-chip",
+                          getScopeLevelClassName(tag.scopeLevel),
+                          activeTag === tag.slug ? "selected-tag-chip-active" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                         type="button"
                         onClick={(event) => {
                           event.preventDefault();
-                          handleTagFilterToggle(tag);
+                          handleTagFilterToggle(tag.slug);
                         }}
                       >
-                        {tag}
+                        {tag.label}
                       </button>
                     ))}
                   </div>

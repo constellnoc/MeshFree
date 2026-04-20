@@ -5,7 +5,14 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 
 import prisma from "../lib/prisma";
-import { InvalidSubmissionTagsError, mapSubmissionTags, normalizeAndValidateTags } from "../lib/tags";
+import {
+  defaultTagLocale,
+  InvalidSubmissionTagsError,
+  mapSubmissionTags,
+  normalizeAndValidateSelectedTagSlugs,
+  syncPresetTags,
+  toPublicTag,
+} from "../lib/tags";
 import {
   getStoredFileName,
   parseSubmissionId,
@@ -28,6 +35,10 @@ function trimTextField(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function resolveLocale(value: unknown) {
+  return trimTextField(value) || defaultTagLocale;
+}
+
 function toAdminSubmissionSummary(submission: {
   id: number;
   title: string;
@@ -41,9 +52,14 @@ function toAdminSubmissionSummary(submission: {
   tags: Array<{
     tag: {
       name: string;
+      scopeLevel: "broad" | "medium" | "specific";
+      translations: Array<{
+        locale: string;
+        displayName: string;
+      }>;
     };
   }>;
-}) {
+}, locale: string) {
   return {
     id: submission.id,
     title: submission.title,
@@ -54,7 +70,7 @@ function toAdminSubmissionSummary(submission: {
     rejectReason: submission.rejectReason,
     createdAt: submission.createdAt.toISOString(),
     reviewedAt: submission.reviewedAt?.toISOString() ?? null,
-    tags: mapSubmissionTags(submission.tags),
+    tags: mapSubmissionTags(submission.tags, locale),
   };
 }
 
@@ -72,28 +88,68 @@ function toAdminSubmissionDetail(submission: {
   tags: Array<{
     tag: {
       name: string;
+      scopeLevel: "broad" | "medium" | "specific";
+      translations: Array<{
+        locale: string;
+        displayName: string;
+      }>;
     };
   }>;
-}) {
+  rawTags: Array<{
+    id: number;
+    value: string;
+    status: "pending" | "resolved" | "ignored";
+    resolvedTag: {
+      name: string;
+      scopeLevel: "broad" | "medium" | "specific";
+      translations: Array<{
+        locale: string;
+        displayName: string;
+      }>;
+    } | null;
+  }>;
+}, locale: string) {
   return {
-    ...toAdminSubmissionSummary(submission),
+    ...toAdminSubmissionSummary(submission, locale),
     modelZipName: getStoredFileName(submission.modelZipPath),
+    rawTags: submission.rawTags.map((rawTag) => ({
+      id: rawTag.id,
+      value: rawTag.value,
+      status: rawTag.status,
+      resolvedTag: rawTag.resolvedTag ? toPublicTag(rawTag.resolvedTag, locale) : null,
+    })),
   };
 }
 
-function buildSubmissionTagCreateInput(tags: string[]) {
-  return tags.map((tagName) => ({
+function buildSubmissionTagCreateInput(tagSlugs: string[]) {
+  return tagSlugs.map((tagSlug) => ({
     tag: {
-      connectOrCreate: {
-        where: {
-          name: tagName,
-        },
-        create: {
-          name: tagName,
-        },
+      connect: {
+        name: tagSlug,
       },
     },
   }));
+}
+
+async function assertTagSlugsExist(tagSlugs: string[]) {
+  if (tagSlugs.length === 0) {
+    return;
+  }
+
+  const existingTags = await prisma.tag.findMany({
+    where: {
+      name: {
+        in: tagSlugs,
+      },
+    },
+    select: {
+      name: true,
+    },
+  });
+
+  if (existingTags.length !== tagSlugs.length) {
+    throw new InvalidSubmissionTagsError("One or more selected tags are no longer available.");
+  }
 }
 
 router.post("/login", adminLoginRateLimit, async (req, res) => {
@@ -155,6 +211,7 @@ router.use(authMiddleware);
 
 router.get("/submissions", async (req, res) => {
   const status = trimTextField(req.query.status);
+  const locale = resolveLocale(req.query.locale);
 
   if (status && !allowedStatuses.has(status)) {
     res.status(400).json({
@@ -163,6 +220,7 @@ router.get("/submissions", async (req, res) => {
     return;
   }
 
+  await syncPresetTags(prisma);
   const submissions = await prisma.submission.findMany({
     where: status
       ? {
@@ -187,6 +245,13 @@ router.get("/submissions", async (req, res) => {
           tag: {
             select: {
               name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
             },
           },
         },
@@ -194,11 +259,12 @@ router.get("/submissions", async (req, res) => {
     },
   });
 
-  res.json(submissions.map(toAdminSubmissionSummary));
+  res.json(submissions.map((submission) => toAdminSubmissionSummary(submission, locale)));
 });
 
 router.get("/submissions/:id", async (req, res) => {
   const submissionId = parseSubmissionId(req.params.id);
+  const locale = resolveLocale(req.query.locale);
 
   if (!submissionId) {
     res.status(404).json({
@@ -207,6 +273,7 @@ router.get("/submissions/:id", async (req, res) => {
     return;
   }
 
+  await syncPresetTags(prisma);
   const submission = await prisma.submission.findUnique({
     where: {
       id: submissionId,
@@ -227,6 +294,35 @@ router.get("/submissions/:id", async (req, res) => {
           tag: {
             select: {
               name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      rawTags: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          id: true,
+          value: true,
+          status: true,
+          resolvedTag: {
+            select: {
+              name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
             },
           },
         },
@@ -241,7 +337,7 @@ router.get("/submissions/:id", async (req, res) => {
     return;
   }
 
-  res.json(toAdminSubmissionDetail(submission));
+  res.json(toAdminSubmissionDetail(submission, locale));
 });
 
 router.get("/submissions/:id/download", async (req, res) => {
@@ -286,6 +382,7 @@ router.get("/submissions/:id/download", async (req, res) => {
 
 router.patch("/submissions/:id/tags", async (req, res) => {
   const submissionId = parseSubmissionId(req.params.id);
+  const locale = resolveLocale(req.query.locale);
 
   if (!submissionId) {
     res.status(404).json({
@@ -295,7 +392,9 @@ router.patch("/submissions/:id/tags", async (req, res) => {
   }
 
   try {
-    const tags = normalizeAndValidateTags(req.body.tags);
+    await syncPresetTags(prisma);
+    const tagSlugs = normalizeAndValidateSelectedTagSlugs(req.body.selectedTagSlugs ?? req.body.tags);
+    await assertTagSlugsExist(tagSlugs);
     const existingSubmission = await prisma.submission.findUnique({
       where: {
         id: submissionId,
@@ -319,9 +418,9 @@ router.patch("/submissions/:id/tags", async (req, res) => {
       data: {
         tags: {
           deleteMany: {},
-          ...(tags.length > 0
+          ...(tagSlugs.length > 0
             ? {
-                create: buildSubmissionTagCreateInput(tags),
+                create: buildSubmissionTagCreateInput(tagSlugs),
               }
             : {}),
         },
@@ -342,6 +441,35 @@ router.patch("/submissions/:id/tags", async (req, res) => {
             tag: {
               select: {
                 name: true,
+                scopeLevel: true,
+                translations: {
+                  select: {
+                    locale: true,
+                    displayName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        rawTags: {
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            id: true,
+            value: true,
+            status: true,
+            resolvedTag: {
+              select: {
+                name: true,
+                scopeLevel: true,
+                translations: {
+                  select: {
+                    locale: true,
+                    displayName: true,
+                  },
+                },
               },
             },
           },
@@ -351,7 +479,7 @@ router.patch("/submissions/:id/tags", async (req, res) => {
 
     res.json({
       message: "Submission tags updated successfully.",
-      submission: toAdminSubmissionDetail(submission),
+      submission: toAdminSubmissionDetail(submission, locale),
     });
   } catch (error) {
     if (error instanceof InvalidSubmissionTagsError) {

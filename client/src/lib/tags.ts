@@ -1,26 +1,17 @@
-export const recommendedTags = [
-  "low-poly",
-  "stylized",
-  "character",
-  "environment",
-  "prop",
-  "weapon",
-  "architecture",
-  "vehicle",
-  "nature",
-  "sci-fi",
-] as const;
+import type { TagScopeLevel } from "../types/tag";
 
-export const maxTagsPerSubmission = 5;
+export const currentTagLocale = "en";
+export const maxSelectedTagsPerSubmission = 5;
+export const maxSuggestedTagsPerSubmission = 5;
 export const minTagLength = 2;
 export const maxTagLength = 20;
 
-export function normalizeTag(value: string) {
+export function normalizeTagText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-export function addTagToList(tags: string[], rawTag: string) {
-  const normalizedTag = normalizeTag(rawTag);
+export function addSuggestedTagToList(tags: string[], rawTag: string) {
+  const normalizedTag = normalizeTagText(rawTag);
 
   if (!normalizedTag) {
     return {
@@ -43,10 +34,10 @@ export function addTagToList(tags: string[], rawTag: string) {
     };
   }
 
-  if (tags.length >= maxTagsPerSubmission) {
+  if (tags.length >= maxSuggestedTagsPerSubmission) {
     return {
       tags,
-      error: `Please use up to ${maxTagsPerSubmission} tags.`,
+      error: `Please use up to ${maxSuggestedTagsPerSubmission} suggested tags.`,
     };
   }
 
@@ -56,13 +47,13 @@ export function addTagToList(tags: string[], rawTag: string) {
   };
 }
 
-export function validateTagList(tags: string[]) {
-  if (tags.length > maxTagsPerSubmission) {
-    return `Please use up to ${maxTagsPerSubmission} tags.`;
+export function validateSuggestedTagList(tags: string[]) {
+  if (tags.length > maxSuggestedTagsPerSubmission) {
+    return `Please use up to ${maxSuggestedTagsPerSubmission} suggested tags.`;
   }
 
   for (const tag of tags) {
-    const normalizedTag = normalizeTag(tag);
+    const normalizedTag = normalizeTagText(tag);
 
     if (normalizedTag.length < minTagLength || normalizedTag.length > maxTagLength) {
       return `Each tag must be between ${minTagLength} and ${maxTagLength} characters.`;
@@ -70,4 +61,8 @@ export function validateTagList(tags: string[]) {
   }
 
   return "";
+}
+
+export function getScopeLevelClassName(scopeLevel: TagScopeLevel) {
+  return `tag-scope-${scopeLevel}`;
 }

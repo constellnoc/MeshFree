@@ -3,10 +3,12 @@ import { Router } from "express";
 
 import prisma from "../lib/prisma";
 import {
+  defaultTagLocale,
   InvalidSubmissionTagsError,
   mapSubmissionTags,
-  normalizeTag,
+  normalizeTagText,
   normalizeTagFilter,
+  syncPresetTags,
 } from "../lib/tags";
 import {
   getStoredFileName,
@@ -21,6 +23,10 @@ function trimTextField(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function resolveLocale(value: unknown) {
+  return trimTextField(value) || defaultTagLocale;
+}
+
 function toModelSummary(submission: {
   id: number;
   title: string;
@@ -30,16 +36,21 @@ function toModelSummary(submission: {
   tags: Array<{
     tag: {
       name: string;
+      scopeLevel: "broad" | "medium" | "specific";
+      translations: Array<{
+        locale: string;
+        displayName: string;
+      }>;
     };
   }>;
-}) {
+}, locale: string) {
   return {
     id: submission.id,
     title: submission.title,
     description: submission.description,
     coverImageUrl: toPublicAssetUrl(submission.coverImagePath),
     createdAt: submission.createdAt.toISOString(),
-    tags: mapSubmissionTags(submission.tags),
+    tags: mapSubmissionTags(submission.tags, locale),
   };
 }
 
@@ -53,11 +64,16 @@ function toModelDetail(submission: {
   tags: Array<{
     tag: {
       name: string;
+      scopeLevel: "broad" | "medium" | "specific";
+      translations: Array<{
+        locale: string;
+        displayName: string;
+      }>;
     };
   }>;
-}) {
+}, locale: string) {
   return {
-    ...toModelSummary(submission),
+    ...toModelSummary(submission, locale),
     previewModelUrl: submission.previewModelPath ? toPublicAssetUrl(submission.previewModelPath) : null,
   };
 }
@@ -65,10 +81,12 @@ function toModelDetail(submission: {
 router.get("/", async (req, res) => {
   const query = trimTextField(req.query.q);
   const requestedTag = trimTextField(req.query.tag);
+  const locale = resolveLocale(req.query.locale);
 
   let normalizedTag: string | undefined;
 
   try {
+    await syncPresetTags(prisma);
     normalizedTag = requestedTag ? normalizeTagFilter(requestedTag) : undefined;
   } catch (error) {
     if (error instanceof InvalidSubmissionTagsError) {
@@ -81,7 +99,7 @@ router.get("/", async (req, res) => {
     throw error;
   }
 
-  const normalizedQuery = query ? normalizeTag(query) : "";
+  const normalizedQuery = query ? normalizeTagText(query) : "";
   const submissions = await prisma.submission.findMany({
     where: {
       status: "approved",
@@ -105,9 +123,31 @@ router.get("/", async (req, res) => {
                         tags: {
                           some: {
                             tag: {
-                              name: {
-                                contains: normalizedQuery,
-                              },
+                              OR: [
+                                {
+                                  name: {
+                                    contains: normalizedQuery,
+                                  },
+                                },
+                                {
+                                  translations: {
+                                    some: {
+                                      normalizedDisplayName: {
+                                        contains: normalizedQuery,
+                                      },
+                                    },
+                                  },
+                                },
+                                {
+                                  aliases: {
+                                    some: {
+                                      normalizedValue: {
+                                        contains: normalizedQuery,
+                                      },
+                                    },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },
@@ -144,6 +184,13 @@ router.get("/", async (req, res) => {
           tag: {
             select: {
               name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
             },
           },
         },
@@ -151,11 +198,12 @@ router.get("/", async (req, res) => {
     },
   });
 
-  res.json(submissions.map(toModelSummary));
+  res.json(submissions.map((submission) => toModelSummary(submission, locale)));
 });
 
 router.get("/:id", async (req, res) => {
   const submissionId = parseSubmissionId(req.params.id);
+  const locale = resolveLocale(req.query.locale);
 
   if (!submissionId) {
     res.status(404).json({
@@ -164,6 +212,7 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
+  await syncPresetTags(prisma);
   const submission = await prisma.submission.findFirst({
     where: {
       id: submissionId,
@@ -181,6 +230,13 @@ router.get("/:id", async (req, res) => {
           tag: {
             select: {
               name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
             },
           },
         },
@@ -195,7 +251,7 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
-  res.json(toModelDetail(submission));
+  res.json(toModelDetail(submission, locale));
 });
 
 router.get("/:id/download", async (req, res) => {
