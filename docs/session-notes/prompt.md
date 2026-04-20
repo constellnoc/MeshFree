@@ -1,47 +1,44 @@
-# MeshFree 下次启动提示词
+# MeshFree 启动提示词
 
-请继续当前项目上下文，并优先参考以下文件：
+## 1. 先看这些文件
 
+高优先级：
+
+- `docs/session-notes/20260420_1_tag-governance-and-localization-upgrade.md`
+- `docs/session-notes/20260419_1_glb-preview-and-viewer-iteration.md`
 - `docs/session-notes/20260418_3_homepage-modal-and-motion-progress.md`
 - `docs/session-notes/20260418_2_home-hero-geometry-execution-handoff.md`
 - `docs/session-notes/20260418_1_navigation-structure-and-ui-adjustments.md`
-- `docs/session-notes/20260416_2_deployment-successfully-completed.md`
-- `docs/session-notes/20260416_1_deployment-started-and-docs-refined.md`
-- `docs/session-notes/20260415_1_three-core-loops-completed.md`
-- `docs/session-notes/20260415_2_deployment-discussion-summary.md`
 - `docs/deployment-guide.zh-CN.md`
 - `docs/deployment-checklist.zh-CN.md`
-- `docs/README.md`
 - `docs/mvp-spec.zh-CN.md`
 - `docs/api-design.zh-CN.md`
 
-请保持以下规则：
+次级：
+
+- `docs/product-backlog.zh-CN.md`
+- `docs/README.md`
+
+## 2. 说话规则
 
 - 和我解释一律中文。
 - 代码注释用英文。
-- 项目文档输出中英双版本。
-- 我是前后端新手，请按非常详细、不要跳步的方式讲。
-- 先不要擅自扩展功能范围，严格按 `MeshFree MVP` 来做。
-- 在开始编码前，先说明本轮要做什么、为什么这样做。
-- 优先沿用已经确认的技术栈，不要随意替换为其他框架或数据库。
-- 所有解释尽量按“这个东西是什么、为什么需要、在项目里做什么”的顺序来讲。
-- 如果准备修改文件，先告诉我即将修改哪些内容。
-- 如果准备执行较长命令或安装依赖，先简要说明目的。
-- 如果上下文过长或进入新阶段，主动建议生成新的阶段总结文档。
-- 除非我明确要求，否则不要擅自提交 git commit。
-- 每一步都告诉我git commit评论，除非在讨论阶段。git commit评论参照cameman-commit插件。
-- 不要把敏感信息写进仓库。
-- 如果生成项目文档，默认同时维护中文和英文版本；若只是和我解释，则只用中文。
-- 在正式开始新一轮开发前，先简要复述当前项目阶段、已完成内容和本轮计划。
-- 如果当前任务与部署、服务器联调、域名、HTTPS、Nginx、PM2、环境变量有关，优先沿用现有部署文档和模板，不要重新发明一套新方案。
-- 如果准备修改部署相关文档，先检查以下文件是否需要同步更新：
-  - `docs/deployment-guide.zh-CN.md`
-  - `docs/deployment-guide.en.md`
-  - `docs/deployment-checklist.zh-CN.md`
-  - `docs/README.md`
-- 如果本轮结束时适合给出 commit message，请给出建议的 commit message，但不要擅自提交。
+- 说明先讲“是什么”，再讲“为什么”，再讲“怎么做”。
+- 我是前后端新手。默认不要跳步。
+- 开始编码前，先说本轮要做什么、为什么这样做。
+- 准备改文件前，先说会改什么。
+- 准备跑长命令前，先说目的。
+- 如果上下文变长或进入新阶段，主动建议写新的 `session-notes`。
 
-当前已确认技术栈：
+## 3. 行为规则
+
+- 不要擅自扩范围。
+- 除非我明确要求，不要提交 git commit。
+- 如果适合给 commit message，只给建议，不要代提交。
+- commit message 风格默认用 `caveman`。
+- 不要把敏感信息写进仓库。
+
+## 4. 技术栈
 
 - 前端：`React + TypeScript + Vite`
 - 后端：`Node.js + Express + TypeScript`
@@ -49,23 +46,96 @@
 - ORM：`Prisma`
 - 部署：`Ubuntu + Nginx + Node.js + PM2`
 
-当前 MVP 范围包括：
+## 5. 当前项目状态
 
+项目已完成：
+
+- `client` / `server` 初始化
+- `Prisma + SQLite` 初始化
 - 游客浏览已审核模型
-- 游客下载已审核 ZIP
-- 游客提交投稿
-- 单管理员登录后台审核
+- 游客下载 ZIP
+- 游客投稿
+- 单管理员登录、审核、拒绝、删除
+- 真实服务器部署
+- 基础限流
+- GLB 预览第一版
 
-当前 MVP 明确不包括：
+当前重点：
 
-- 普通用户注册与登录
-- 搜索和分类
-- 评论、收藏、点赞
-- 3D 在线预览
-- Docker
+- 继续验证真实环境
+- 做小修复
+- 做结构整理
+- 不做大范围失控扩展
+
+## 6. 当前标签系统结论
+
+已确认：
+
+- 模型只绑定规范标签
+- 用户自定义输入不是公开标签
+- 用户可提交私有建议标签
+- 管理员决定：
+  - 绑定已有规范标签
+  - 后续建新标签
+  - 后续建别名
+- 标签已开始支持：
+  - `Tag`
+  - `TagTranslation`
+  - `TagAlias`
+  - `SubmissionRawTag`
+- 标签颜色深浅表达范围：
+  - `broad`
+  - `medium`
+  - `specific`
+
+当前还没完全做完：
+
+- 管理员把私有建议标签转成“新标签 / 别名”的完整 UI
+- 正式中英文切换 UI
+
+## 7. 范围边界
+
+当前范围内：
+
+- 游客浏览
+- 游客下载
+- 游客投稿
+- 管理员审核
+- 已有标签搜索 / 标签筛选 / 标签治理结构
+- 第一版 3D 预览
+
+默认不优先：
+
+- 普通用户系统
+- 评论 / 收藏 / 点赞
 - 对象存储
+- Docker
+- 大型平台化改造
 
-不要提交到仓库的敏感内容包括：
+## 8. 部署相关规则
+
+如果任务涉及：
+
+- 服务器联调
+- 域名
+- HTTPS
+- Nginx
+- PM2
+- 环境变量
+- 生产数据库
+
+则优先沿用现有部署文档，不要另起一套。
+
+如果改部署文档，先检查：
+
+- `docs/deployment-guide.zh-CN.md`
+- `docs/deployment-guide.en.md`
+- `docs/deployment-checklist.zh-CN.md`
+- `docs/README.md`
+
+## 9. 敏感内容
+
+不要提交：
 
 - `.env`
 - 管理员真实密码
@@ -73,35 +143,10 @@
 - 数据库文件
 - 上传文件
 
-本项目当前阶段说明：
+## 10. 每轮开始时默认输出
 
-- 需求、技术栈、API 方向已经确认
-- 中英双语需求文档、API 文档、部署文档已经创建
-- `client` 和 `server` 初始化已完成
-- `Prisma + SQLite` 已完成初始化并生成数据库
-- `MeshFree MVP` 三条核心业务闭环已经本地打通
-- 公开模型浏览与下载已接入真实数据
-- 公开投稿已接入真实上传和数据库写入
-- 管理员登录、审核、拒绝、删除已接入真实逻辑
-- 管理员 seed 用户名已支持环境变量 `ADMIN_SEED_USERNAME`
-- 已补 `server/.env.example`
-- 已补 `server/ecosystem.config.cjs`
-- 已补 `deploy/nginx/meshfree.conf.example`
-- 已补管理员维护脚本 `npm run admin:manage`
-- 生产环境 `CORS` 已收紧
-- 管理员登录和公开投稿已加入基础限流
-- 真实云服务器部署已完成
-- 服务器 `UFW` 已启用并放行 `22/80/443`
-- 域名 `yukiho.site` 的 NS 已切换到阿里云 DNS
-- 服务器 Node.js 环境已修正到 `20.x`
-- 当前基础测试未发现明显问题
-- 当前重点已从“逐步部署”转向“继续验证、记录经验、按需小修复”
+新一轮开始时，先短答这 3 件事：
 
-本项目的首要目标是：
-
-- 先把 MVP 跑起来
-- 保持结构清晰
-- 便于我理解和继续维护
-- 已在服务器上按现有文档完成部署
-- 让部署经验、验收记录与实际运行状态保持同步
-- 在真实环境继续验证并维持稳定运行
+1. 当前项目阶段
+2. 已完成到哪里
+3. 本轮准备做什么
