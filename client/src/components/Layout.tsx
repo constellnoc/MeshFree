@@ -61,12 +61,10 @@ export function Layout() {
 
   const activeHomeSection =
     location.pathname === "/"
-      ? location.hash === "#gallery"
-        ? "gallery"
-        : location.hash === "#about"
-          ? "about"
-          : homeSection
-      : homeSection;
+      ? homeSection
+      : location.hash === "#about"
+        ? "about"
+        : "home";
 
   useEffect(() => {
     document.title = getDocumentTitle(location.pathname, location.hash, activeHomeSection);
@@ -94,23 +92,48 @@ export function Layout() {
 
   useEffect(() => {
     if (location.pathname !== "/") {
+      setHomeSection("home");
+      return;
+    }
+
+    if (location.hash === "#gallery") {
+      setHomeSection("gallery");
+      return;
+    }
+
+    if (location.hash === "#about") {
+      setHomeSection("about");
+      return;
+    }
+
+    setHomeSection("home");
+  }, [location.hash, location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
       return;
     }
 
     let animationFrameId = 0;
+
+    const getSectionActivationTop = (element: HTMLElement) => {
+      const computedStyle = window.getComputedStyle(element);
+      const scrollMarginTop = Number.parseFloat(computedStyle.scrollMarginTop || "0") || 0;
+      return element.getBoundingClientRect().top + window.scrollY - scrollMarginTop;
+    };
 
     const updateHomeSection = () => {
       animationFrameId = 0;
 
       const galleryElement = document.getElementById("gallery");
       const aboutElement = document.getElementById("about");
-      const sectionProbe = window.innerHeight * 0.32;
+      const sectionProbe = window.scrollY + 1;
 
       let nextSection: HomeSection = "home";
 
-      if (aboutElement && aboutElement.getBoundingClientRect().top <= sectionProbe) {
+      if (aboutElement && sectionProbe >= getSectionActivationTop(aboutElement)) {
         nextSection = "about";
-      } else if (galleryElement && galleryElement.getBoundingClientRect().top <= sectionProbe) {
+      } else if (galleryElement && sectionProbe >= getSectionActivationTop(galleryElement)) {
         nextSection = "gallery";
       }
 
@@ -159,6 +182,39 @@ export function Layout() {
     });
   };
 
+  const handleSectionNavigation = (section: "gallery" | "about") => {
+    const targetPathname = section === "gallery" ? "/" : location.pathname;
+    const nextHash = `#${section}`;
+
+    if (location.pathname !== targetPathname) {
+      navigate({
+        pathname: targetPathname,
+        hash: nextHash,
+      });
+      return;
+    }
+
+    if (location.pathname === "/") {
+      setHomeSection(section);
+    }
+
+    const targetElement = document.getElementById(section);
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    if (location.hash !== nextHash) {
+      navigate(
+        {
+          pathname: location.pathname,
+          search: location.search,
+          hash: nextHash,
+        },
+        { replace: true },
+      );
+    }
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -169,63 +225,82 @@ export function Layout() {
             </Link>
           </div>
 
-          <nav className="app-nav topbar-nav" aria-label="Primary navigation">
-            <Link
-              className={
-                location.pathname === "/" && activeHomeSection === "gallery"
-                  ? "nav-link nav-link-active"
-                  : "nav-link"
-              }
-              to="/#gallery"
-            >
-              Gallery
-            </Link>
-            <form className="nav-search-form" onSubmit={handleNavSearchSubmit}>
-              <input
-                key={location.search}
-                ref={navSearchInputRef}
-                className="nav-search-input"
-                type="search"
-                defaultValue={new URLSearchParams(location.search).get("q") ?? ""}
-                placeholder="Search"
-                aria-label="Search models"
-              />
-            </form>
-            <Link
-              className={
-                (location.pathname === "/" && activeHomeSection === "about") || location.hash === "#about"
-                  ? "nav-link nav-link-active"
-                  : "nav-link"
-              }
-              to={`${location.pathname}#about`}
-            >
-              About
-            </Link>
-            {hasAdminToken ? (
-              <NavLink
-                className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
-                to="/admin/dashboard"
+          <div className="topbar-main">
+            <nav className="topbar-nav topbar-link-group" aria-label="Primary navigation">
+              <button
+                className={
+                  location.pathname === "/" && activeHomeSection === "gallery"
+                    ? "nav-link nav-link-active"
+                    : "nav-link"
+                }
+                type="button"
+                onClick={() => handleSectionNavigation("gallery")}
               >
-                {adminDisplayName ?? "Dashboard"}
-              </NavLink>
-            ) : (
-              <NavLink
-                className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
-                to="/admin/login"
+                Gallery
+              </button>
+              <button
+                className={
+                  (location.pathname === "/" && activeHomeSection === "about") ||
+                  (location.pathname !== "/" && location.hash === "#about")
+                    ? "nav-link nav-link-active"
+                    : "nav-link"
+                }
+                type="button"
+                onClick={() => handleSectionNavigation("about")}
               >
-                Sign in / Sign up
-              </NavLink>
-            )}
+                About
+              </button>
+            </nav>
 
-            <NavLink
-              className={({ isActive }) =>
-                isActive ? "nav-link nav-link-active topbar-upload-button" : "nav-link topbar-upload-button"
-              }
-              to="/upload"
-            >
-              Upload
-            </NavLink>
-          </nav>
+            <form className="nav-search-form" onSubmit={handleNavSearchSubmit}>
+              <div className="nav-search-field">
+                <input
+                  key={location.search}
+                  ref={navSearchInputRef}
+                  className="nav-search-input"
+                  type="search"
+                  defaultValue={new URLSearchParams(location.search).get("q") ?? ""}
+                  placeholder="Search"
+                  aria-label="Search models"
+                />
+                <button className="nav-search-button" type="submit" aria-label="Search models">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.43 1.41-1.41-4.43-4.44A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9.01 4.5 4.5 0 0 1 0-9.01Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </form>
+
+            <div className="topbar-action-group">
+              {hasAdminToken ? (
+                <NavLink
+                  className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
+                  to="/admin/dashboard"
+                >
+                  {adminDisplayName ?? "Dashboard"}
+                </NavLink>
+              ) : (
+                <NavLink
+                  className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
+                  to="/admin/login"
+                >
+                  Sign in / Sign up
+                </NavLink>
+              )}
+
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? "nav-link nav-link-active topbar-upload-button" : "nav-link topbar-upload-button"
+                }
+                to="/upload"
+              >
+                Upload
+              </NavLink>
+            </div>
+          </div>
         </div>
       </header>
 

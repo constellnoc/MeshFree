@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
 import { getApprovedModels } from "../api/models";
@@ -23,14 +23,9 @@ export function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
-  const [searchInput, setSearchInput] = useState("");
 
   const activeQuery = searchParams.get("q")?.trim() ?? "";
   const activeTag = searchParams.get("tag")?.trim() ?? "";
-
-  useEffect(() => {
-    setSearchInput(activeQuery);
-  }, [activeQuery]);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -129,17 +124,11 @@ export function HomePage() {
     setSearchParams(nextParams);
   };
 
-  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    updateFilters(searchInput, activeTag);
-  };
-
   const handleTagFilterToggle = (tag: string) => {
     updateFilters(activeQuery, activeTag === tag ? "" : tag);
   };
 
   const handleClearFilters = () => {
-    setSearchInput("");
     setSearchParams(new URLSearchParams());
   };
 
@@ -177,8 +166,7 @@ export function HomePage() {
           <p className="section-kicker">Gallery</p>
           <h2>Approved model resources</h2>
           <p>
-            Search by keyword, browse recommended tags, and open approved resources without
-            logging in.
+            Browse recommended tags and open approved resources without logging in.
           </p>
         </div>
         <div className="actions">
@@ -188,58 +176,38 @@ export function HomePage() {
         </div>
       </div>
 
-      <div className="card">
-        <form className="search-panel" onSubmit={handleSearchSubmit}>
-          <div className="search-panel-row">
-            <label className="form-field search-panel-field">
-              <span className="form-label">Search by title, description, or tag</span>
-              <input
-                className="form-input"
-                type="search"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Try low-poly, temple, environment..."
-              />
-            </label>
-            <div className="search-panel-actions">
-              <button className="button-link" type="submit">
-                Search
-              </button>
-              {activeQuery || activeTag ? (
-                <button className="button-link secondary" type="button" onClick={handleClearFilters}>
-                  Clear filters
-                </button>
-              ) : null}
-            </div>
-          </div>
+      <div className="gallery-toolbar">
+        <div className="tag-chip-list">
+          {availableTags.map((tag) => (
+            <button
+              key={tag.slug}
+              className={[
+                "tag-chip",
+                getScopeLevelClassName(tag.scopeLevel),
+                activeTag === tag.slug ? "tag-chip-active" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              type="button"
+              onClick={() => handleTagFilterToggle(tag.slug)}
+            >
+              {tag.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="tag-chip-list">
-            {availableTags.map((tag) => (
-              <button
-                key={tag.slug}
-                className={[
-                  "tag-chip",
-                  getScopeLevelClassName(tag.scopeLevel),
-                  activeTag === tag.slug ? "tag-chip-active" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                type="button"
-                onClick={() => handleTagFilterToggle(tag.slug)}
-              >
-                {tag.label}
-              </button>
-            ))}
-          </div>
-
-          {activeQuery || activeTag ? (
+        {activeQuery || activeTag ? (
+          <div className="gallery-toolbar-meta">
             <p className="search-result-summary">
               Showing results
               {activeQuery ? ` for "${activeQuery}"` : ""}
               {activeTag ? ` in tag "${activeTag}"` : ""}.
             </p>
-          ) : null}
-        </form>
+            <button className="button-link secondary" type="button" onClick={handleClearFilters}>
+              Clear filters
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {isLoading ? (
