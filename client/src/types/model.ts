@@ -4,6 +4,7 @@ export interface ModelSummary {
   description: string;
   coverImageUrl: string;
   createdAt: string;
+  tags: string[];
 }
 
 export interface ModelDetail extends ModelSummary {

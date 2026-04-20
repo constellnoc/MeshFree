@@ -164,6 +164,15 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
         <div className={isModal ? "detail-description detail-description-scroll" : "detail-description"}>
           <p>{model.description}</p>
         </div>
+        {model.tags.length > 0 ? (
+          <div className="selected-tag-list model-tag-list">
+            {model.tags.map((tag) => (
+              <Link key={tag} className="selected-tag-chip" to={`/?tag=${encodeURIComponent(tag)}#gallery`}>
+                {tag}
+              </Link>
+            ))}
+          </div>
+        ) : null}
         <p className="model-date">Created {formatDate(model.createdAt)}</p>
         <div className="actions">
           <a className="button-link" href={`/api/models/${model.id}/download`}>

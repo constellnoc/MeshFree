@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import axios from "axios";
 
 import { createSubmission } from "../api/submissions";
+import {
+  addTagToList,
+  maxTagsPerSubmission,
+  recommendedTags,
+  validateTagList,
+} from "../lib/tags";
 import type { SubmissionResult } from "../types/submission";
 
 const maxCoverSize = 2 * 1024 * 1024;
@@ -14,6 +20,7 @@ interface SubmissionDraft {
   title: string;
   description: string;
   contact: string;
+  tags: string[];
 }
 
 function hasAllowedExtension(fileName: string, allowedExtensions: string[]): boolean {
@@ -36,6 +43,8 @@ export function UploadPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [contact, setContact] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [modelZipFile, setModelZipFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -54,13 +63,14 @@ export function UploadPage() {
       setTitle(typeof draft.title === "string" ? draft.title : "");
       setDescription(typeof draft.description === "string" ? draft.description : "");
       setContact(typeof draft.contact === "string" ? draft.contact : "");
+      setTags(Array.isArray(draft.tags) ? draft.tags.filter((tag): tag is string => typeof tag === "string") : []);
     } catch {
       localStorage.removeItem(submissionDraftStorageKey);
     }
   }, []);
 
   useEffect(() => {
-    const hasDraftContent = Boolean(title || description || contact);
+    const hasDraftContent = Boolean(title || description || contact || tags.length > 0);
 
     if (!hasDraftContent) {
       localStorage.removeItem(submissionDraftStorageKey);
@@ -73,9 +83,10 @@ export function UploadPage() {
         title,
         description,
         contact,
+        tags,
       } satisfies SubmissionDraft),
     );
-  }, [title, description, contact]);
+  }, [contact, description, tags, title]);
 
   const handleCoverChange = (event: ChangeEvent<HTMLInputElement>) => {
     setCoverFile(event.target.files?.[0] ?? null);
@@ -83,6 +94,30 @@ export function UploadPage() {
 
   const handleModelZipChange = (event: ChangeEvent<HTMLInputElement>) => {
     setModelZipFile(event.target.files?.[0] ?? null);
+  };
+
+  const handleAddTag = (rawTag: string) => {
+    const nextState = addTagToList(tags, rawTag);
+
+    setErrorMessage(nextState.error);
+
+    if (nextState.tags !== tags) {
+      setTags(nextState.tags);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove));
+  };
+
+  const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" && event.key !== ",") {
+      return;
+    }
+
+    event.preventDefault();
+    handleAddTag(tagInput);
   };
 
   const validateForm = (): string => {
@@ -110,6 +145,12 @@ export function UploadPage() {
       return "Model ZIP must not exceed 20MB.";
     }
 
+    const tagValidationMessage = validateTagList(tags);
+
+    if (tagValidationMessage) {
+      return tagValidationMessage;
+    }
+
     return "";
   };
 
@@ -132,6 +173,7 @@ export function UploadPage() {
     formData.append("title", title.trim());
     formData.append("description", description.trim());
     formData.append("contact", contact.trim());
+    formData.append("tags", JSON.stringify(tags));
     formData.append("cover", coverFile);
     formData.append("modelZip", modelZipFile);
 
@@ -145,6 +187,8 @@ export function UploadPage() {
       setTitle("");
       setDescription("");
       setContact("");
+      setTags([]);
+      setTagInput("");
       setCoverFile(null);
       setModelZipFile(null);
       localStorage.removeItem(submissionDraftStorageKey);
@@ -160,6 +204,8 @@ export function UploadPage() {
     setTitle("");
     setDescription("");
     setContact("");
+    setTags([]);
+    setTagInput("");
     setCoverFile(null);
     setModelZipFile(null);
     setErrorMessage("");
@@ -222,6 +268,61 @@ export function UploadPage() {
             />
           </label>
 
+          <div className="form-field">
+            <span className="form-label">Tags</span>
+            <div className="tag-input-row">
+              <input
+                className="form-input"
+                type="text"
+                value={tagInput}
+                onChange={(event) => setTagInput(event.target.value)}
+                onKeyDown={handleTagInputKeyDown}
+                placeholder="Type a tag and press Enter"
+                disabled={isSubmitting || tags.length >= maxTagsPerSubmission}
+              />
+              <button
+                className="button-link secondary"
+                type="button"
+                onClick={() => handleAddTag(tagInput)}
+                disabled={isSubmitting || !tagInput.trim() || tags.length >= maxTagsPerSubmission}
+              >
+                Add tag
+              </button>
+            </div>
+            <span className="form-help">
+              Use up to {maxTagsPerSubmission} tags. You can pick recommended tags or add your own.
+            </span>
+            <div className="tag-chip-list">
+              {recommendedTags.map((recommendedTag) => (
+                <button
+                  key={recommendedTag}
+                  className={tags.includes(recommendedTag) ? "tag-chip tag-chip-active" : "tag-chip"}
+                  type="button"
+                  onClick={() => handleAddTag(recommendedTag)}
+                  disabled={isSubmitting}
+                >
+                  {recommendedTag}
+                </button>
+              ))}
+            </div>
+            {tags.length > 0 ? (
+              <div className="selected-tag-list" aria-live="polite">
+                {tags.map((tag) => (
+                  <button
+                    key={tag}
+                    className="selected-tag-chip"
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    disabled={isSubmitting}
+                  >
+                    {tag}
+                    <span aria-hidden="true"> ×</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
           <label className="form-field">
             <span className="form-label">Cover image</span>
             <input
@@ -263,7 +364,7 @@ export function UploadPage() {
           </div>
 
           <p className="form-help">
-            Text fields are saved locally in this browser. File inputs must be selected again
+            Text fields and selected tags are saved locally in this browser. File inputs must be selected again
             after refresh or reset.
           </p>
         </form>

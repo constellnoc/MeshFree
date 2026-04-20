@@ -11,7 +11,14 @@ import {
   getAdminToken,
   rejectSubmission,
   deleteSubmission,
+  updateSubmissionTags,
 } from "../api/admin";
+import {
+  addTagToList,
+  maxTagsPerSubmission,
+  recommendedTags,
+  validateTagList,
+} from "../lib/tags";
 import type { AdminSubmissionDetail, AdminSubmissionStatus, AdminSubmissionSummary } from "../types/admin";
 
 type SubmissionFilter = "all" | AdminSubmissionStatus;
@@ -47,6 +54,8 @@ export function AdminDashboardPage() {
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<AdminSubmissionDetail | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [editableTags, setEditableTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -86,6 +95,8 @@ export function AdminDashboardPage() {
       if (!nextSelectedId) {
         setSelectedSubmission(null);
         setRejectReason("");
+        setEditableTags([]);
+        setTagInput("");
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -109,6 +120,8 @@ export function AdminDashboardPage() {
       if (!selectedSubmissionId) {
         setSelectedSubmission(null);
         setRejectReason("");
+        setEditableTags([]);
+        setTagInput("");
         return;
       }
 
@@ -118,6 +131,8 @@ export function AdminDashboardPage() {
         const detail = await getAdminSubmissionDetail(selectedSubmissionId);
         setSelectedSubmission(detail);
         setRejectReason(detail.rejectReason ?? "");
+        setEditableTags(detail.tags);
+        setTagInput("");
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           handleUnauthorized();
@@ -137,6 +152,54 @@ export function AdminDashboardPage() {
   const handleLogout = () => {
     clearAdminToken();
     navigate("/admin/login");
+  };
+
+  const handleAddTag = (rawTag: string) => {
+    const nextState = addTagToList(editableTags, rawTag);
+    setErrorMessage(nextState.error);
+
+    if (nextState.tags !== editableTags) {
+      setEditableTags(nextState.tags);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setEditableTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove));
+  };
+
+  const handleSaveTags = async () => {
+    if (!selectedSubmission) {
+      return;
+    }
+
+    const tagValidationMessage = validateTagList(editableTags);
+
+    if (tagValidationMessage) {
+      setErrorMessage(tagValidationMessage);
+      return;
+    }
+
+    setIsSubmittingAction(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const result = await updateSubmissionTags(selectedSubmission.id, editableTags);
+      setSelectedSubmission(result.submission);
+      setEditableTags(result.submission.tags);
+      setSuccessMessage(result.message);
+      await loadSubmissions(selectedSubmission.id);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setErrorMessage(getDashboardErrorMessage(error));
+    } finally {
+      setIsSubmittingAction(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -304,6 +367,15 @@ export function AdminDashboardPage() {
                   </span>
                 </div>
                 <p>{submission.description}</p>
+                {submission.tags.length > 0 ? (
+                  <div className="selected-tag-list model-tag-list">
+                    {submission.tags.map((tag) => (
+                      <span key={tag} className="selected-tag-chip">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <p className="admin-submission-meta">
                   Created {formatDateTime(submission.createdAt)}
                 </p>
@@ -361,6 +433,72 @@ export function AdminDashboardPage() {
                       <strong>Reject reason:</strong> {selectedSubmission.rejectReason}
                     </p>
                   ) : null}
+                </div>
+
+                <div className="form-field">
+                  <span className="form-label">Tags</span>
+                  <div className="tag-input-row">
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={tagInput}
+                      onChange={(event) => setTagInput(event.target.value)}
+                      placeholder="Add a tag"
+                      disabled={isSubmittingAction || editableTags.length >= maxTagsPerSubmission}
+                    />
+                    <button
+                      className="button-link secondary"
+                      type="button"
+                      onClick={() => handleAddTag(tagInput)}
+                      disabled={isSubmittingAction || !tagInput.trim() || editableTags.length >= maxTagsPerSubmission}
+                    >
+                      Add tag
+                    </button>
+                  </div>
+                  <span className="form-help">
+                    Admins can refine up to {maxTagsPerSubmission} tags before or after review.
+                  </span>
+                  <div className="tag-chip-list">
+                    {recommendedTags.map((tag) => (
+                      <button
+                        key={tag}
+                        className={editableTags.includes(tag) ? "tag-chip tag-chip-active" : "tag-chip"}
+                        type="button"
+                        onClick={() => handleAddTag(tag)}
+                        disabled={isSubmittingAction}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  {editableTags.length > 0 ? (
+                    <div className="selected-tag-list">
+                      {editableTags.map((tag) => (
+                        <button
+                          key={tag}
+                          className="selected-tag-chip"
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          disabled={isSubmittingAction}
+                        >
+                          {tag}
+                          <span aria-hidden="true"> ×</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="form-help">No tags saved yet.</p>
+                  )}
+                  <div className="actions">
+                    <button
+                      className="button-link secondary"
+                      type="button"
+                      onClick={handleSaveTags}
+                      disabled={isSubmittingAction}
+                    >
+                      Save tags
+                    </button>
+                  </div>
                 </div>
 
                 {selectedSubmission.status === "pending" ? (

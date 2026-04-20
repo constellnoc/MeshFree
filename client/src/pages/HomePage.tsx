@@ -1,7 +1,8 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 
 import { getApprovedModels } from "../api/models";
+import { recommendedTags } from "../lib/tags";
 import type { ModelSummary } from "../types/model";
 
 function formatDate(dateString: string): string {
@@ -14,15 +15,29 @@ function formatDate(dateString: string): string {
 
 export function HomePage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+
+  const activeQuery = searchParams.get("q")?.trim() ?? "";
+  const activeTag = searchParams.get("tag")?.trim() ?? "";
+
+  useEffect(() => {
+    setSearchInput(activeQuery);
+  }, [activeQuery]);
 
   useEffect(() => {
     const loadModels = async () => {
+      setIsLoading(true);
+
       try {
-        const data = await getApprovedModels();
+        const data = await getApprovedModels({
+          ...(activeQuery ? { q: activeQuery } : {}),
+          ...(activeTag ? { tag: activeTag } : {}),
+        });
         setModels(data);
         setErrorMessage("");
       } catch (error) {
@@ -33,7 +48,7 @@ export function HomePage() {
     };
 
     void loadModels();
-  }, []);
+  }, [activeQuery, activeTag]);
 
   useEffect(() => {
     let animationFrameId = 0;
@@ -81,6 +96,36 @@ export function HomePage() {
     "--hero-opacity-fast": Math.max(1 - exitProgress * exitProgress * 1.85, 0).toFixed(3),
   } as CSSProperties;
 
+  const updateFilters = (nextQuery: string, nextTag: string) => {
+    const nextParams = new URLSearchParams();
+    const trimmedQuery = nextQuery.trim();
+    const trimmedTag = nextTag.trim();
+
+    if (trimmedQuery) {
+      nextParams.set("q", trimmedQuery);
+    }
+
+    if (trimmedTag) {
+      nextParams.set("tag", trimmedTag);
+    }
+
+    setSearchParams(nextParams);
+  };
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    updateFilters(searchInput, activeTag);
+  };
+
+  const handleTagFilterToggle = (tag: string) => {
+    updateFilters(activeQuery, activeTag === tag ? "" : tag);
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setSearchParams(new URLSearchParams());
+  };
+
   return (
     <section className="page-stack home-page">
       <section id="home-hero" className="hero-shell" style={heroStyle}>
@@ -94,7 +139,6 @@ export function HomePage() {
         </div>
 
         <div className="hero-copy">
-          <p className="section-kicker">MeshFree MVP</p>
           <h1>Open resources, open creativity.</h1>
           <p className="hero-lead">
             MeshFree is a lightweight platform for browsing, sharing, and
@@ -116,8 +160,8 @@ export function HomePage() {
           <p className="section-kicker">Gallery</p>
           <h2>Approved model resources</h2>
           <p>
-            This section shows approved submissions from the backend. Visitors
-            can open detail pages and download the ZIP files without logging in.
+            Search by keyword, browse recommended tags, and open approved resources without
+            logging in.
           </p>
         </div>
         <div className="actions">
@@ -125,6 +169,54 @@ export function HomePage() {
             Upload a model
           </Link>
         </div>
+      </div>
+
+      <div className="card">
+        <form className="search-panel" onSubmit={handleSearchSubmit}>
+          <div className="search-panel-row">
+            <label className="form-field search-panel-field">
+              <span className="form-label">Search by title, description, or tag</span>
+              <input
+                className="form-input"
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Try low-poly, temple, environment..."
+              />
+            </label>
+            <div className="search-panel-actions">
+              <button className="button-link" type="submit">
+                Search
+              </button>
+              {activeQuery || activeTag ? (
+                <button className="button-link secondary" type="button" onClick={handleClearFilters}>
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="tag-chip-list">
+            {recommendedTags.map((tag) => (
+              <button
+                key={tag}
+                className={activeTag === tag ? "tag-chip tag-chip-active" : "tag-chip"}
+                type="button"
+                onClick={() => handleTagFilterToggle(tag)}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+
+          {activeQuery || activeTag ? (
+            <p className="search-result-summary">
+              Showing results
+              {activeQuery ? ` for "${activeQuery}"` : ""}
+              {activeTag ? ` in tag "${activeTag}"` : ""}.
+            </p>
+          ) : null}
+        </form>
       </div>
 
       {isLoading ? (
@@ -143,10 +235,11 @@ export function HomePage() {
 
       {!isLoading && !errorMessage && models.length === 0 ? (
         <div className="card">
-          <h2>No approved models yet</h2>
+          <h2>{activeQuery || activeTag ? "No matching models" : "No approved models yet"}</h2>
           <p>
-            The public gallery is empty right now. Once approved submissions exist,
-            they will appear here automatically.
+            {activeQuery || activeTag
+              ? "Try a different keyword or remove the active tag filter."
+              : "The public gallery is empty right now. Once approved submissions exist, they will appear here automatically."}
           </p>
         </div>
       ) : null}
@@ -169,6 +262,23 @@ export function HomePage() {
                 <p className="model-date">Approved resource</p>
                 <h2>{model.title}</h2>
                 <p>{model.description}</p>
+                {model.tags.length > 0 ? (
+                  <div className="selected-tag-list model-tag-list">
+                    {model.tags.map((tag) => (
+                      <button
+                        key={tag}
+                        className={activeTag === tag ? "selected-tag-chip selected-tag-chip-active" : "selected-tag-chip"}
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          handleTagFilterToggle(tag);
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <span className="model-link">View details and download</span>
                 <p className="model-date">Created {formatDate(model.createdAt)}</p>
               </div>

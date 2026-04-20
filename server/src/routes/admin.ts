@@ -5,6 +5,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 
 import prisma from "../lib/prisma";
+import { InvalidSubmissionTagsError, mapSubmissionTags, normalizeAndValidateTags } from "../lib/tags";
 import {
   getStoredFileName,
   parseSubmissionId,
@@ -37,6 +38,11 @@ function toAdminSubmissionSummary(submission: {
   rejectReason: string | null;
   createdAt: Date;
   reviewedAt: Date | null;
+  tags: Array<{
+    tag: {
+      name: string;
+    };
+  }>;
 }) {
   return {
     id: submission.id,
@@ -48,6 +54,7 @@ function toAdminSubmissionSummary(submission: {
     rejectReason: submission.rejectReason,
     createdAt: submission.createdAt.toISOString(),
     reviewedAt: submission.reviewedAt?.toISOString() ?? null,
+    tags: mapSubmissionTags(submission.tags),
   };
 }
 
@@ -62,11 +69,31 @@ function toAdminSubmissionDetail(submission: {
   rejectReason: string | null;
   createdAt: Date;
   reviewedAt: Date | null;
+  tags: Array<{
+    tag: {
+      name: string;
+    };
+  }>;
 }) {
   return {
     ...toAdminSubmissionSummary(submission),
     modelZipName: getStoredFileName(submission.modelZipPath),
   };
+}
+
+function buildSubmissionTagCreateInput(tags: string[]) {
+  return tags.map((tagName) => ({
+    tag: {
+      connectOrCreate: {
+        where: {
+          name: tagName,
+        },
+        create: {
+          name: tagName,
+        },
+      },
+    },
+  }));
 }
 
 router.post("/login", adminLoginRateLimit, async (req, res) => {
@@ -155,6 +182,15 @@ router.get("/submissions", async (req, res) => {
       rejectReason: true,
       createdAt: true,
       reviewedAt: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -186,6 +222,15 @@ router.get("/submissions/:id", async (req, res) => {
       rejectReason: true,
       createdAt: true,
       reviewedAt: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -237,6 +282,87 @@ router.get("/submissions/:id/download", async (req, res) => {
 
   const downloadName = getStoredFileName(submission.modelZipPath) || `${submission.title}.zip`;
   res.download(absoluteZipPath, downloadName);
+});
+
+router.patch("/submissions/:id/tags", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  try {
+    const tags = normalizeAndValidateTags(req.body.tags);
+    const existingSubmission = await prisma.submission.findUnique({
+      where: {
+        id: submissionId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingSubmission) {
+      res.status(404).json({
+        message: "Submission not found.",
+      });
+      return;
+    }
+
+    const submission = await prisma.submission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
+        tags: {
+          deleteMany: {},
+          ...(tags.length > 0
+            ? {
+                create: buildSubmissionTagCreateInput(tags),
+              }
+            : {}),
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        contact: true,
+        coverImagePath: true,
+        modelZipPath: true,
+        status: true,
+        rejectReason: true,
+        createdAt: true,
+        reviewedAt: true,
+        tags: {
+          select: {
+            tag: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.json({
+      message: "Submission tags updated successfully.",
+      submission: toAdminSubmissionDetail(submission),
+    });
+  } catch (error) {
+    if (error instanceof InvalidSubmissionTagsError) {
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
+    throw error;
+  }
 });
 
 router.patch("/submissions/:id/approve", async (req, res) => {

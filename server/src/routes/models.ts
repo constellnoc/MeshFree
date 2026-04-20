@@ -3,6 +3,12 @@ import { Router } from "express";
 
 import prisma from "../lib/prisma";
 import {
+  InvalidSubmissionTagsError,
+  mapSubmissionTags,
+  normalizeTag,
+  normalizeTagFilter,
+} from "../lib/tags";
+import {
   getStoredFileName,
   parseSubmissionId,
   resolveUploadFilePath,
@@ -11,12 +17,21 @@ import {
 
 const router = Router();
 
+function trimTextField(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function toModelSummary(submission: {
   id: number;
   title: string;
   description: string;
   coverImagePath: string;
   createdAt: Date;
+  tags: Array<{
+    tag: {
+      name: string;
+    };
+  }>;
 }) {
   return {
     id: submission.id,
@@ -24,6 +39,7 @@ function toModelSummary(submission: {
     description: submission.description,
     coverImageUrl: toPublicAssetUrl(submission.coverImagePath),
     createdAt: submission.createdAt.toISOString(),
+    tags: mapSubmissionTags(submission.tags),
   };
 }
 
@@ -34,6 +50,11 @@ function toModelDetail(submission: {
   coverImagePath: string;
   previewModelPath: string | null;
   createdAt: Date;
+  tags: Array<{
+    tag: {
+      name: string;
+    };
+  }>;
 }) {
   return {
     ...toModelSummary(submission),
@@ -41,10 +62,73 @@ function toModelDetail(submission: {
   };
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
+  const query = trimTextField(req.query.q);
+  const requestedTag = trimTextField(req.query.tag);
+
+  let normalizedTag: string | undefined;
+
+  try {
+    normalizedTag = requestedTag ? normalizeTagFilter(requestedTag) : undefined;
+  } catch (error) {
+    if (error instanceof InvalidSubmissionTagsError) {
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
+    throw error;
+  }
+
+  const normalizedQuery = query ? normalizeTag(query) : "";
   const submissions = await prisma.submission.findMany({
     where: {
       status: "approved",
+      ...(query || normalizedTag
+        ? {
+            AND: [
+              query
+                ? {
+                    OR: [
+                      {
+                        title: {
+                          contains: query,
+                        },
+                      },
+                      {
+                        description: {
+                          contains: query,
+                        },
+                      },
+                      {
+                        tags: {
+                          some: {
+                            tag: {
+                              name: {
+                                contains: normalizedQuery,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  }
+                : {},
+              normalizedTag
+                ? {
+                    tags: {
+                      some: {
+                        tag: {
+                          name: normalizedTag,
+                        },
+                      },
+                    },
+                  }
+                : {},
+            ],
+          }
+        : {}),
     },
     orderBy: {
       createdAt: "desc",
@@ -55,6 +139,15 @@ router.get("/", async (_req, res) => {
       description: true,
       coverImagePath: true,
       createdAt: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -83,6 +176,15 @@ router.get("/:id", async (req, res) => {
       coverImagePath: true,
       previewModelPath: true,
       createdAt: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 

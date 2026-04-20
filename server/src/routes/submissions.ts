@@ -4,6 +4,7 @@ import { Router } from "express";
 
 import { InvalidZipArchiveError, extractPreviewModelFromZip } from "../lib/modelPreview";
 import prisma from "../lib/prisma";
+import { InvalidSubmissionTagsError, normalizeAndValidateTags } from "../lib/tags";
 import { removeUploadFile, toRelativeUploadPath } from "../lib/uploads";
 import { createRateLimitMiddleware } from "../middleware/rateLimit";
 import { uploadSubmissionFiles } from "../middleware/upload";
@@ -49,6 +50,21 @@ function isValidZipFile(file: Express.Multer.File): boolean {
   return path.extname(file.originalname).toLowerCase() === ".zip";
 }
 
+function buildSubmissionTagCreateInput(tags: string[]) {
+  return tags.map((tagName) => ({
+    tag: {
+      connectOrCreate: {
+        where: {
+          name: tagName,
+        },
+        create: {
+          name: tagName,
+        },
+      },
+    },
+  }));
+}
+
 router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) => {
   const { cover = [], modelZip = [] } = req.files as UploadedSubmissionFiles;
   const coverFile = cover[0];
@@ -56,6 +72,7 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
   const title = trimTextField(req.body.title);
   const description = trimTextField(req.body.description);
   const contact = trimTextField(req.body.contact);
+  let tags: string[] = [];
   let previewModelPath: string | null = null;
 
   if (!title || !description || !contact || !coverFile || !modelZipFile) {
@@ -83,6 +100,7 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
   }
 
   try {
+    tags = normalizeAndValidateTags(req.body.tags);
     previewModelPath = extractPreviewModelFromZip(modelZipFile.path);
 
     const submission = await prisma.submission.create({
@@ -93,6 +111,13 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
         coverImagePath: toRelativeUploadPath(coverFile.path),
         modelZipPath: toRelativeUploadPath(modelZipFile.path),
         previewModelPath,
+        ...(tags.length > 0
+          ? {
+              tags: {
+                create: buildSubmissionTagCreateInput(tags),
+              },
+            }
+          : {}),
       },
       select: {
         id: true,
@@ -118,6 +143,14 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
       });
       return;
     }
+
+    if (error instanceof InvalidSubmissionTagsError) {
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
     console.error("Failed to create submission.");
     console.error(error);
     res.status(500).json({

@@ -20,6 +20,7 @@ export interface AdminSubmissionSummary {
   rejectReason: string | null;
   createdAt: string;
   reviewedAt: string | null;
+  tags: string[];
 }
 
 export interface AdminSubmissionDetail extends AdminSubmissionSummary {

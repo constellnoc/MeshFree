@@ -115,6 +115,21 @@ export async function deleteSubmission(id: number) {
   return response.data;
 }
 
+export async function updateSubmissionTags(id: number, tags: string[]) {
+  const response = await http.patch<{
+    message: string;
+    submission: AdminSubmissionDetail;
+  }>(
+    `/admin/submissions/${id}/tags`,
+    { tags },
+    {
+      headers: getAuthHeaders(),
+    },
+  );
+
+  return response.data;
+}
+
 export async function downloadAdminSubmissionZip(id: number) {
   const response = await http.get<Blob>(`/admin/submissions/${id}/download`, {
     headers: getAuthHeaders(),

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { getAdminDisplayName, getAdminToken } from "../api/admin";
 
@@ -43,8 +43,10 @@ function getDocumentTitle(pathname: string, hash: string, homeSection: HomeSecti
 
 export function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const hasAdminToken = Boolean(getAdminToken());
   const adminDisplayName = getAdminDisplayName();
+  const navSearchInputRef = useRef<HTMLInputElement | null>(null);
   const [homeSection, setHomeSection] = useState<HomeSection>(() => {
     if (location.hash === "#gallery") {
       return "gallery";
@@ -57,9 +59,18 @@ export function Layout() {
     return "home";
   });
 
+  const activeHomeSection =
+    location.pathname === "/"
+      ? location.hash === "#gallery"
+        ? "gallery"
+        : location.hash === "#about"
+          ? "about"
+          : homeSection
+      : homeSection;
+
   useEffect(() => {
-    document.title = getDocumentTitle(location.pathname, location.hash, homeSection);
-  }, [homeSection, location.hash, location.pathname]);
+    document.title = getDocumentTitle(location.pathname, location.hash, activeHomeSection);
+  }, [activeHomeSection, location.hash, location.pathname]);
 
   useEffect(() => {
     if (!location.hash) {
@@ -131,23 +142,22 @@ export function Layout() {
     };
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (location.pathname !== "/") {
-      return;
+  const handleNavSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextParams = new URLSearchParams();
+    const trimmedQuery = navSearchInputRef.current?.value.trim() ?? "";
+
+    if (trimmedQuery) {
+      nextParams.set("q", trimmedQuery);
     }
 
-    if (location.hash === "#gallery") {
-      setHomeSection("gallery");
-      return;
-    }
-
-    if (location.hash === "#about") {
-      setHomeSection("about");
-      return;
-    }
-
-    setHomeSection("home");
-  }, [location.hash, location.pathname]);
+    navigate({
+      pathname: "/",
+      search: nextParams.toString() ? `?${nextParams.toString()}` : "",
+      hash: "#gallery",
+    });
+  };
 
   return (
     <div className="app-shell">
@@ -161,17 +171,29 @@ export function Layout() {
 
           <nav className="app-nav topbar-nav" aria-label="Primary navigation">
             <Link
-              className={location.pathname === "/" && homeSection === "gallery" ? "nav-link nav-link-active" : "nav-link"}
+              className={
+                location.pathname === "/" && activeHomeSection === "gallery"
+                  ? "nav-link nav-link-active"
+                  : "nav-link"
+              }
               to="/#gallery"
             >
               Gallery
             </Link>
-            <div className="nav-search-placeholder" aria-hidden="true">
-              Search
-            </div>
+            <form className="nav-search-form" onSubmit={handleNavSearchSubmit}>
+              <input
+                key={location.search}
+                ref={navSearchInputRef}
+                className="nav-search-input"
+                type="search"
+                defaultValue={new URLSearchParams(location.search).get("q") ?? ""}
+                placeholder="Search"
+                aria-label="Search models"
+              />
+            </form>
             <Link
               className={
-                (location.pathname === "/" && homeSection === "about") || location.hash === "#about"
+                (location.pathname === "/" && activeHomeSection === "about") || location.hash === "#about"
                   ? "nav-link nav-link-active"
                   : "nav-link"
               }
