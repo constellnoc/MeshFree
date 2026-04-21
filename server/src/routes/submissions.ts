@@ -17,7 +17,7 @@ import { uploadSubmissionFiles } from "../middleware/upload";
 const router = Router();
 
 const maxCoverSize = 2 * 1024 * 1024;
-const maxModelZipSize = 20 * 1024 * 1024;
+const maxModelZipSize = 50 * 1024 * 1024;
 const allowedCoverExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const submissionRateLimit = createRateLimitMiddleware({
   windowMs: 10 * 60 * 1000,

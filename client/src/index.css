@@ -68,9 +68,17 @@ button {
 
 .brand-link {
   flex-shrink: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
   font-size: 1.2rem;
   font-weight: 800;
   color: #0f172a;
+  cursor: pointer;
+}
+
+.brand-link-active {
+  color: #1d4ed8;
 }
 
 .topbar-main {
@@ -1164,6 +1172,19 @@ pre {
   gap: 12px;
   color: #64748b;
   scroll-margin-top: 100px;
+  text-align: center;
+}
+
+.about-page {
+  min-height: calc(100vh - 180px);
+  display: grid;
+  place-items: center;
+  padding: 24px 0 12px;
+}
+
+.about-panel {
+  width: min(680px, 100%);
+  margin: 0 auto;
   text-align: center;
 }
 

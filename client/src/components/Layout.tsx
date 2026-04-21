@@ -1,25 +1,29 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { getAdminDisplayName, getAdminToken } from "../api/admin";
+import { SiteInfoBlock } from "./SiteInfoBlock";
 
-type HomeSection = "home" | "gallery" | "about";
+type TopbarSectionId = "home" | "gallery" | "about";
+type HomeSectionId = Extract<TopbarSectionId, "home" | "gallery">;
 
-function getDocumentTitle(pathname: string, hash: string, homeSection: HomeSection): string {
+const topbarSections = [
+  { id: "home", label: "MeshFree", kind: "home-root" },
+  { id: "gallery", label: "Gallery", kind: "home-section", targetId: "gallery", hash: "#gallery" },
+  { id: "about", label: "About", kind: "route", pathname: "/about" },
+] as const;
+
+function getDocumentTitle(pathname: string, activeSection: TopbarSectionId | null): string {
+  if (pathname === "/about") {
+    return "MeshFree-About";
+  }
+
   if (pathname === "/") {
-    if (homeSection === "gallery") {
+    if (activeSection === "gallery") {
       return "MeshFree-Gallery";
     }
 
-    if (homeSection === "about") {
-      return "MeshFree-About";
-    }
-
     return "MeshFree-Home";
-  }
-
-  if (hash === "#about") {
-    return "MeshFree-About";
   }
 
   if (pathname === "/upload" || pathname === "/submit") {
@@ -47,35 +51,23 @@ export function Layout() {
   const hasAdminToken = Boolean(getAdminToken());
   const adminDisplayName = getAdminDisplayName();
   const navSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const [homeSection, setHomeSection] = useState<HomeSection>(() => {
-    if (location.hash === "#gallery") {
-      return "gallery";
-    }
-
-    if (location.hash === "#about") {
-      return "about";
-    }
-
-    return "home";
+  const [homeSection, setHomeSection] = useState<HomeSectionId>(() => {
+    return location.pathname === "/" && location.hash === "#gallery" ? "gallery" : "home";
   });
 
-  const activeHomeSection =
-    location.pathname === "/"
-      ? homeSection
-      : location.hash === "#about"
-        ? "about"
-        : "home";
+  const activeTopbarSection: TopbarSectionId | null =
+    location.pathname === "/about" ? "about" : location.pathname === "/" ? homeSection : null;
 
   useEffect(() => {
-    document.title = getDocumentTitle(location.pathname, location.hash, activeHomeSection);
-  }, [activeHomeSection, location.hash, location.pathname]);
+    document.title = getDocumentTitle(location.pathname, activeTopbarSection);
+  }, [activeTopbarSection, location.pathname]);
 
   useEffect(() => {
-    if (!location.hash) {
+    if (location.pathname !== "/" || location.hash !== "#gallery") {
       return;
     }
 
-    const targetElement = document.getElementById(location.hash.slice(1));
+    const targetElement = document.getElementById("gallery");
 
     if (!targetElement) {
       return;
@@ -101,11 +93,6 @@ export function Layout() {
       return;
     }
 
-    if (location.hash === "#about") {
-      setHomeSection("about");
-      return;
-    }
-
     setHomeSection("home");
   }, [location.hash, location.pathname]);
 
@@ -124,18 +111,14 @@ export function Layout() {
 
     const updateHomeSection = () => {
       animationFrameId = 0;
-
       const galleryElement = document.getElementById("gallery");
-      const aboutElement = document.getElementById("about");
-      const sectionProbe = window.scrollY + 1;
-
-      let nextSection: HomeSection = "home";
-
-      if (aboutElement && sectionProbe >= getSectionActivationTop(aboutElement)) {
-        nextSection = "about";
-      } else if (galleryElement && sectionProbe >= getSectionActivationTop(galleryElement)) {
-        nextSection = "gallery";
-      }
+      const topbarElement = document.querySelector(".topbar");
+      const topbarHeight = topbarElement?.getBoundingClientRect().height ?? 0;
+      const activationProbe = window.scrollY + Math.max(topbarHeight + 24, window.innerHeight * 0.42);
+      const nextSection: HomeSectionId =
+        galleryElement && getSectionActivationTop(galleryElement) <= activationProbe
+          ? "gallery"
+          : "home";
 
       setHomeSection((currentSection) => {
         return currentSection === nextSection ? currentSection : nextSection;
@@ -175,6 +158,7 @@ export function Layout() {
       nextParams.set("q", trimmedQuery);
     }
 
+    setHomeSection("gallery");
     navigate({
       pathname: "/",
       search: nextParams.toString() ? `?${nextParams.toString()}` : "",
@@ -182,37 +166,57 @@ export function Layout() {
     });
   };
 
-  const handleSectionNavigation = (section: "gallery" | "about") => {
-    const targetPathname = section === "gallery" ? "/" : location.pathname;
-    const nextHash = `#${section}`;
+  const handleSectionNavigation = (sectionId: TopbarSectionId) => {
+    const section = topbarSections.find((entry) => entry.id === sectionId);
 
-    if (location.pathname !== targetPathname) {
-      navigate({
-        pathname: targetPathname,
-        hash: nextHash,
-      });
+    if (!section) {
       return;
     }
 
-    if (location.pathname === "/") {
-      setHomeSection(section);
+    if (section.kind === "home-root") {
+      setHomeSection("home");
+
+      if (location.pathname === "/") {
+        if (location.search || location.hash) {
+          navigate("/", { replace: true });
+        }
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      navigate("/");
+      return;
     }
 
-    const targetElement = document.getElementById(section);
-    if (targetElement) {
-      targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (section.kind === "home-section") {
+      setHomeSection("gallery");
+
+      if (location.pathname !== "/") {
+        navigate({ pathname: "/", hash: section.hash });
+        return;
+      }
+
+      const targetElement = document.getElementById(section.targetId);
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (location.hash !== section.hash) {
+        navigate(
+          {
+            pathname: "/",
+            search: location.search,
+            hash: section.hash,
+          },
+          { replace: true },
+        );
+      }
+
+      return;
     }
 
-    if (location.hash !== nextHash) {
-      navigate(
-        {
-          pathname: location.pathname,
-          search: location.search,
-          hash: nextHash,
-        },
-        { replace: true },
-      );
-    }
+    navigate(section.pathname);
   };
 
   return (
@@ -220,36 +224,29 @@ export function Layout() {
       <header className="topbar">
         <div className="topbar-inner">
           <div className="topbar-left">
-            <Link className="brand-link" to="/">
+            <button
+              className={activeTopbarSection === "home" ? "brand-link brand-link-active" : "brand-link"}
+              type="button"
+              onClick={() => handleSectionNavigation("home")}
+            >
               MeshFree
-            </Link>
+            </button>
           </div>
 
           <div className="topbar-main">
             <nav className="topbar-nav topbar-link-group" aria-label="Primary navigation">
-              <button
-                className={
-                  location.pathname === "/" && activeHomeSection === "gallery"
-                    ? "nav-link nav-link-active"
-                    : "nav-link"
-                }
-                type="button"
-                onClick={() => handleSectionNavigation("gallery")}
-              >
-                Gallery
-              </button>
-              <button
-                className={
-                  (location.pathname === "/" && activeHomeSection === "about") ||
-                  (location.pathname !== "/" && location.hash === "#about")
-                    ? "nav-link nav-link-active"
-                    : "nav-link"
-                }
-                type="button"
-                onClick={() => handleSectionNavigation("about")}
-              >
-                About
-              </button>
+              {topbarSections
+                .filter((section) => section.id !== "home")
+                .map((section) => (
+                  <button
+                    key={section.id}
+                    className={activeTopbarSection === section.id ? "nav-link nav-link-active" : "nav-link"}
+                    type="button"
+                    onClick={() => handleSectionNavigation(section.id)}
+                  >
+                    {section.label}
+                  </button>
+                ))}
             </nav>
 
             <form className="nav-search-form" onSubmit={handleNavSearchSubmit}>
@@ -308,32 +305,11 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer id="about" className="site-footer">
-        <p className="footer-about">A lightweight platform for 3D model sharing and review.</p>
-        <div className="footer-links">
-          <a
-            className="footer-link-with-icon"
-            href="https://github.com/constellnoc/MeshFree"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <svg
-              className="footer-link-icon"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path
-                fill="currentColor"
-                d="M12 2C6.48 2 2 6.59 2 12.24c0 4.51 2.87 8.34 6.84 9.69.5.09.68-.22.68-.49 0-.24-.01-1.05-.01-1.91-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.35 1.11 2.92.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.1 0-1.13.39-2.05 1.03-2.77-.1-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.06A9.33 9.33 0 0 1 12 6.84c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.06 2.75-1.06.55 1.42.2 2.47.1 2.73.64.72 1.03 1.64 1.03 2.77 0 3.97-2.35 4.84-4.58 5.09.36.32.68.95.68 1.92 0 1.39-.01 2.5-.01 2.84 0 .27.18.59.69.49A10.04 10.04 0 0 0 22 12.24C22 6.59 17.52 2 12 2Z"
-              />
-            </svg>
-            GitHub
-          </a>
-          <a href="mailto:constellnoc@gmail.com">Contact: constellnoc@gmail.com</a>
-        </div>
-        <p className="footer-meta">Copyright © 2026 Noctiluca</p>
-      </footer>
+      {location.pathname !== "/about" ? (
+        <footer className="site-footer">
+          <SiteInfoBlock />
+        </footer>
+      ) : null}
     </div>
   );
 }

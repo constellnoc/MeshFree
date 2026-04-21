@@ -4,6 +4,7 @@
 
 高优先级：
 
+- `docs/session-notes/20260420_2_navigation-about-and-beta-prep.md`
 - `docs/session-notes/20260420_1_tag-governance-and-localization-upgrade.md`
 - `docs/session-notes/20260419_1_glb-preview-and-viewer-iteration.md`
 - `docs/session-notes/20260418_3_homepage-modal-and-motion-progress.md`
@@ -59,6 +60,9 @@
 - 真实服务器部署
 - 基础限流
 - GLB 预览第一版
+- 独立 `About` 页面第一版
+- 顶部导航高亮第一版重构
+- 模型 ZIP 上传上限已调到 `50MB`
 
 当前重点：
 
@@ -83,6 +87,8 @@
   - `TagTranslation`
   - `TagAlias`
   - `SubmissionRawTag`
+- 代码里已有预设规范标签
+- 运行时会同步预设标签到数据库
 - 标签颜色深浅表达范围：
   - `broad`
   - `medium`

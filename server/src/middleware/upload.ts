@@ -7,7 +7,7 @@ import multer from "multer";
 const uploadsDir = path.resolve(__dirname, "..", "..", "uploads");
 const coversDir = path.join(uploadsDir, "covers");
 const modelsDir = path.join(uploadsDir, "models");
-const maxModelZipSize = 20 * 1024 * 1024;
+const maxModelZipSize = 50 * 1024 * 1024;
 
 for (const directory of [uploadsDir, coversDir, modelsDir]) {
   fs.mkdirSync(directory, { recursive: true });

@@ -15,7 +15,7 @@ import type { PublicTag } from "../types/tag";
 import type { SubmissionResult } from "../types/submission";
 
 const maxCoverSize = 2 * 1024 * 1024;
-const maxModelZipSize = 20 * 1024 * 1024;
+const maxModelZipSize = 50 * 1024 * 1024;
 const allowedCoverExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 const submissionDraftStorageKey = "meshfree_submission_draft";
 
