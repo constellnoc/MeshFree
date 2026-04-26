@@ -179,14 +179,8 @@ export function normalizeAndValidateSuggestedTags(value: unknown): string[] {
   return normalizedTags;
 }
 
-export function normalizeTagFilter(value: unknown): string {
-  const tags = normalizeAndValidateSelectedTagSlugs(value);
-
-  if (tags.length !== 1) {
-    throw new InvalidSubmissionTagsError("Please provide exactly one tag filter.");
-  }
-
-  return tags[0];
+export function normalizeTagFilters(value: unknown): string[] {
+  return normalizeAndValidateSelectedTagSlugs(value);
 }
 
 export function normalizeTagSlug(value: unknown) {

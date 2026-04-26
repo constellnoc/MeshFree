@@ -8,6 +8,12 @@ function resolveLocalizedTagReference(activeTag: string, activeTagLabel?: string
   return activeTagLabel && activeTagLabel !== activeTag ? activeTagLabel : activeTag;
 }
 
+function formatLocalizedTagReferences(activeTags: string[], activeTagLabels?: string[], separator = '", "') {
+  return activeTags
+    .map((activeTag, index) => resolveLocalizedTagReference(activeTag, activeTagLabels?.[index]))
+    .join(separator);
+}
+
 const en = {
   nav: {
     gallery: "Gallery",
@@ -45,8 +51,10 @@ const en = {
     galleryTitle: "Approved model resources",
     galleryLead: "Browse recommended tags and open approved resources without logging in.",
     uploadModel: "Upload a model",
-    showingResults: (activeQuery: string, activeTag: string, activeTagLabel?: string) =>
-      `Showing results${activeQuery ? ` for "${activeQuery}"` : ""}${activeTag ? ` in tag "${resolveLocalizedTagReference(activeTag, activeTagLabel)}"` : ""}.`,
+    showingResults: (activeQuery: string, activeTags: string[], activeTagLabels?: string[]) =>
+      `Showing results${activeQuery ? ` for "${activeQuery}"` : ""}${
+        activeTags.length > 0 ? ` in tags "${formatLocalizedTagReferences(activeTags, activeTagLabels)}"` : ""
+      }.`,
     clearFilters: "Clear filters",
     loadingTitle: "Loading models",
     loadingBody: "The client is requesting `/api/models` from the backend.",
@@ -256,10 +264,10 @@ const zhCN: AppCopy = {
     galleryTitle: "公开资源",
     galleryLead: "无需登录即可浏览标签并查看公开资源。",
     uploadModel: "上传模型",
-    showingResults: (activeQuery: string, activeTag: string, activeTagLabel?: string) =>
+    showingResults: (activeQuery: string, activeTags: string[], activeTagLabels?: string[]) =>
       `正在显示${
-        activeTag ? `标签“${resolveLocalizedTagReference(activeTag, activeTagLabel)}”` : ""
-      }${activeQuery ? `${activeTag ? "下" : ""}“${activeQuery}”的` : activeTag ? "的" : ""}搜索结果。`,
+        activeTags.length > 0 ? `标签“${formatLocalizedTagReferences(activeTags, activeTagLabels, "、")}”` : ""
+      }${activeQuery ? `${activeTags.length > 0 ? "下" : ""}“${activeQuery}”的` : activeTags.length > 0 ? "的" : ""}搜索结果。`,
     clearFilters: "清除筛选",
     loadingTitle: "加载中...",
     loadingBody: "正在请求...后端接口 `/api/models`。",

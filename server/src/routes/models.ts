@@ -7,7 +7,7 @@ import {
   InvalidSubmissionTagsError,
   mapSubmissionTags,
   normalizeTagText,
-  normalizeTagFilter,
+  normalizeTagFilters,
   syncPresetTags,
 } from "../lib/tags";
 import {
@@ -80,14 +80,14 @@ function toModelDetail(submission: {
 
 router.get("/", async (req, res) => {
   const query = trimTextField(req.query.q);
-  const requestedTag = trimTextField(req.query.tag);
+  const requestedTags = req.query.tag;
   const locale = resolveLocale(req.query.locale);
 
-  let normalizedTag: string | undefined;
+  let normalizedTags: string[] = [];
 
   try {
     await syncPresetTags(prisma);
-    normalizedTag = requestedTag ? normalizeTagFilter(requestedTag) : undefined;
+    normalizedTags = normalizeTagFilters(requestedTags);
   } catch (error) {
     if (error instanceof InvalidSubmissionTagsError) {
       res.status(400).json({
@@ -103,7 +103,7 @@ router.get("/", async (req, res) => {
   const submissions = await prisma.submission.findMany({
     where: {
       status: "approved",
-      ...(query || normalizedTag
+      ...(query || normalizedTags.length > 0
         ? {
             AND: [
               query
@@ -155,15 +155,17 @@ router.get("/", async (req, res) => {
                     ],
                   }
                 : {},
-              normalizedTag
+              normalizedTags.length > 0
                 ? {
-                    tags: {
-                      some: {
-                        tag: {
-                          name: normalizedTag,
+                    AND: normalizedTags.map((normalizedTag) => ({
+                      tags: {
+                        some: {
+                          tag: {
+                            name: normalizedTag,
+                          },
                         },
                       },
-                    },
+                    })),
                   }
                 : {},
             ],

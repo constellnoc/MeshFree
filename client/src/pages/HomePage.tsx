@@ -28,10 +28,18 @@ export function HomePage() {
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
 
   const activeQuery = searchParams.get("q")?.trim() ?? "";
-  const activeTag = searchParams.get("tag")?.trim() ?? "";
-  const activeTagLabel = useMemo(
-    () => availableTags.find((tag) => tag.slug === activeTag)?.label ?? activeTag,
-    [activeTag, availableTags],
+  const activeTags = useMemo(
+    () =>
+      searchParams
+        .getAll("tag")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    [searchParams],
+  );
+  const activeTagLabels = useMemo(
+    () =>
+      activeTags.map((activeTag) => availableTags.find((tag) => tag.slug === activeTag)?.label ?? activeTag),
+    [activeTags, availableTags],
   );
 
   useEffect(() => {
@@ -41,7 +49,7 @@ export function HomePage() {
       try {
         const data = await getApprovedModels({
           ...(activeQuery ? { q: activeQuery } : {}),
-          ...(activeTag ? { tag: activeTag } : {}),
+          ...(activeTags.length > 0 ? { tags: activeTags } : {}),
           locale,
         });
         setModels(data);
@@ -54,7 +62,7 @@ export function HomePage() {
     };
 
     void loadModels();
-  }, [activeQuery, activeTag, locale]);
+  }, [activeQuery, activeTags, locale]);
 
   useEffect(() => {
     const loadTags = async () => {
@@ -115,24 +123,30 @@ export function HomePage() {
     "--hero-opacity-fast": Math.max(1 - exitProgress * exitProgress * 1.85, 0).toFixed(3),
   } as CSSProperties;
 
-  const updateFilters = (nextQuery: string, nextTag: string) => {
+  const updateFilters = (nextQuery: string, nextTags: string[]) => {
     const nextParams = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
-    const trimmedTag = nextTag.trim();
 
     if (trimmedQuery) {
       nextParams.set("q", trimmedQuery);
     }
 
-    if (trimmedTag) {
-      nextParams.set("tag", trimmedTag);
+    for (const tag of nextTags) {
+      const trimmedTag = tag.trim();
+
+      if (trimmedTag) {
+        nextParams.append("tag", trimmedTag);
+      }
     }
 
     setSearchParams(nextParams);
   };
 
   const handleTagFilterToggle = (tag: string) => {
-    updateFilters(activeQuery, activeTag === tag ? "" : tag);
+    updateFilters(
+      activeQuery,
+      activeTags.includes(tag) ? activeTags.filter((activeTag) => activeTag !== tag) : [...activeTags, tag],
+    );
   };
 
   const handleClearFilters = () => {
@@ -186,7 +200,7 @@ export function HomePage() {
               className={[
                 "tag-chip",
                 getScopeLevelClassName(tag.scopeLevel),
-                activeTag === tag.slug ? "tag-chip-active" : "",
+                activeTags.includes(tag.slug) ? "tag-chip-active" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -198,9 +212,9 @@ export function HomePage() {
           ))}
         </div>
 
-        {activeQuery || activeTag ? (
+        {activeQuery || activeTags.length > 0 ? (
           <div className="gallery-toolbar-meta">
-            <p className="search-result-summary">{copy.home.showingResults(activeQuery, activeTag, activeTagLabel)}</p>
+            <p className="search-result-summary">{copy.home.showingResults(activeQuery, activeTags, activeTagLabels)}</p>
             <button className="button-link secondary" type="button" onClick={handleClearFilters}>
               {copy.home.clearFilters}
             </button>
@@ -224,9 +238,9 @@ export function HomePage() {
 
       {!isLoading && !errorMessage && models.length === 0 ? (
         <div className="card">
-          <h2>{activeQuery || activeTag ? copy.home.noMatchingTitle : copy.home.noApprovedTitle}</h2>
+          <h2>{activeQuery || activeTags.length > 0 ? copy.home.noMatchingTitle : copy.home.noApprovedTitle}</h2>
           <p>
-            {activeQuery || activeTag
+            {activeQuery || activeTags.length > 0
               ? copy.home.noMatchingBody
               : copy.home.noApprovedBody}
           </p>
@@ -259,7 +273,7 @@ export function HomePage() {
                         className={[
                           "selected-tag-chip",
                           getScopeLevelClassName(tag.scopeLevel),
-                          activeTag === tag.slug ? "selected-tag-chip-active" : "",
+                          activeTags.includes(tag.slug) ? "selected-tag-chip-active" : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
