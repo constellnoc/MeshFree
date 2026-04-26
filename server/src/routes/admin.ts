@@ -3,6 +3,7 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import type { Prisma, PrismaClient } from "../generated/prisma/client";
 
 import prisma from "../lib/prisma";
 import {
@@ -10,6 +11,7 @@ import {
   InvalidSubmissionTagsError,
   mapSubmissionTags,
   normalizeAndValidateSelectedTagSlugs,
+  normalizeTagText,
   syncPresetTags,
   toPublicTag,
 } from "../lib/tags";
@@ -25,11 +27,19 @@ import { createRateLimitMiddleware } from "../middleware/rateLimit";
 
 const router = Router();
 const allowedStatuses = new Set(["pending", "approved", "rejected"]);
+const allowedScopeLevels = new Set(["broad", "medium", "specific"]);
 const adminLoginRateLimit = createRateLimitMiddleware({
   windowMs: 15 * 60 * 1000,
   maxRequests: 5,
   message: "Too many login attempts. Please try again later.",
 });
+
+class InvalidAdminActionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidAdminActionError";
+  }
+}
 
 function trimTextField(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -37,6 +47,13 @@ function trimTextField(value: unknown): string {
 
 function resolveLocale(value: unknown) {
   return trimTextField(value) || defaultTagLocale;
+}
+
+function normalizeTagSlugInput(value: unknown) {
+  return trimTextField(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function toAdminSubmissionSummary(submission: {
@@ -121,6 +138,13 @@ function toAdminSubmissionDetail(submission: {
   };
 }
 
+type ManagedTagPayload = {
+  slug: string;
+  displayNameEn: string;
+  displayNameZh: string;
+  scopeLevel: "broad" | "medium" | "specific";
+};
+
 function buildSubmissionTagCreateInput(tagSlugs: string[]) {
   return tagSlugs.map((tagSlug) => ({
     tag: {
@@ -150,6 +174,154 @@ async function assertTagSlugsExist(tagSlugs: string[]) {
   if (existingTags.length !== tagSlugs.length) {
     throw new InvalidSubmissionTagsError("One or more selected tags are no longer available.");
   }
+}
+
+function parseManagedTagPayload(body: Record<string, unknown>): ManagedTagPayload {
+  const slug = normalizeTagSlugInput(body.slug);
+  const displayNameEn = trimTextField(body.displayNameEn);
+  const displayNameZh = trimTextField(body.displayNameZh);
+  const scopeLevel = trimTextField(body.scopeLevel);
+
+  if (!slug) {
+    throw new InvalidAdminActionError("Please provide a valid tag slug.");
+  }
+
+  if (!displayNameEn || !displayNameZh) {
+    throw new InvalidAdminActionError("Please provide both English and Chinese tag names.");
+  }
+
+  if (!allowedScopeLevels.has(scopeLevel)) {
+    throw new InvalidAdminActionError("Please provide a valid tag scope.");
+  }
+
+  return {
+    slug,
+    displayNameEn,
+    displayNameZh,
+    scopeLevel: scopeLevel as ManagedTagPayload["scopeLevel"],
+  };
+}
+
+async function createManagedTag(
+  client: PrismaClient | Prisma.TransactionClient,
+  payload: ManagedTagPayload,
+) {
+  const existingTag = await client.tag.findUnique({
+    where: {
+      name: payload.slug,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingTag) {
+    throw new InvalidAdminActionError("Tag slug already exists.");
+  }
+
+  const tag = await client.tag.create({
+    data: {
+      name: payload.slug,
+      scopeLevel: payload.scopeLevel,
+    },
+    select: {
+      id: true,
+      name: true,
+      scopeLevel: true,
+    },
+  });
+
+  await client.tagTranslation.createMany({
+    data: [
+      {
+        tagId: tag.id,
+        locale: "en",
+        displayName: payload.displayNameEn,
+        normalizedDisplayName: normalizeTagText(payload.displayNameEn),
+      },
+      {
+        tagId: tag.id,
+        locale: "zh-CN",
+        displayName: payload.displayNameZh,
+        normalizedDisplayName: normalizeTagText(payload.displayNameZh),
+      },
+    ],
+  });
+
+  return client.tag.findUniqueOrThrow({
+    where: {
+      id: tag.id,
+    },
+    select: {
+      id: true,
+      name: true,
+      scopeLevel: true,
+      translations: {
+        select: {
+          locale: true,
+          displayName: true,
+        },
+      },
+    },
+  });
+}
+
+async function getAdminSubmissionDetailRecord(submissionId: number) {
+  return prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      contact: true,
+      coverImagePath: true,
+      modelZipPath: true,
+      status: true,
+      rejectReason: true,
+      createdAt: true,
+      reviewedAt: true,
+      tags: {
+        select: {
+          tag: {
+            select: {
+              name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      rawTags: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          id: true,
+          value: true,
+          status: true,
+          resolvedTag: {
+            select: {
+              name: true,
+              scopeLevel: true,
+              translations: {
+                select: {
+                  locale: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 router.post("/login", adminLoginRateLimit, async (req, res) => {
@@ -274,61 +446,7 @@ router.get("/submissions/:id", async (req, res) => {
   }
 
   await syncPresetTags(prisma);
-  const submission = await prisma.submission.findUnique({
-    where: {
-      id: submissionId,
-    },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      contact: true,
-      coverImagePath: true,
-      modelZipPath: true,
-      status: true,
-      rejectReason: true,
-      createdAt: true,
-      reviewedAt: true,
-      tags: {
-        select: {
-          tag: {
-            select: {
-              name: true,
-              scopeLevel: true,
-              translations: {
-                select: {
-                  locale: true,
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-      },
-      rawTags: {
-        orderBy: {
-          createdAt: "asc",
-        },
-        select: {
-          id: true,
-          value: true,
-          status: true,
-          resolvedTag: {
-            select: {
-              name: true,
-              scopeLevel: true,
-              translations: {
-                select: {
-                  locale: true,
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
+  const submission = await getAdminSubmissionDetailRecord(submissionId);
 
   if (!submission) {
     res.status(404).json({
@@ -338,6 +456,260 @@ router.get("/submissions/:id", async (req, res) => {
   }
 
   res.json(toAdminSubmissionDetail(submission, locale));
+});
+
+router.post("/tags", async (req, res) => {
+  const locale = resolveLocale(req.query.locale);
+
+  try {
+    await syncPresetTags(prisma);
+    const payload = parseManagedTagPayload((req.body ?? {}) as Record<string, unknown>);
+    const tag = await createManagedTag(prisma, payload);
+
+    res.status(201).json({
+      message: "Admin tag created successfully.",
+      tag: toPublicTag(tag, locale),
+    });
+  } catch (error) {
+    if (error instanceof InvalidAdminActionError) {
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
+    throw error;
+  }
+});
+
+router.patch("/raw-tags/:id/ignore", async (req, res) => {
+  const rawTagId = parseSubmissionId(req.params.id);
+  const locale = resolveLocale(req.query.locale);
+
+  if (!rawTagId) {
+    res.status(404).json({
+      message: "Custom tag not found.",
+    });
+    return;
+  }
+
+  const rawTag = await prisma.submissionRawTag.findUnique({
+    where: {
+      id: rawTagId,
+    },
+    select: {
+      id: true,
+      submissionId: true,
+    },
+  });
+
+  if (!rawTag) {
+    res.status(404).json({
+      message: "Custom tag not found.",
+    });
+    return;
+  }
+
+  await prisma.submissionRawTag.update({
+    where: {
+      id: rawTagId,
+    },
+    data: {
+      status: "ignored",
+      resolvedTagId: null,
+    },
+  });
+
+  const submission = await getAdminSubmissionDetailRecord(rawTag.submissionId);
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  res.json({
+    message: "Custom tag ignored successfully.",
+    submission: toAdminSubmissionDetail(submission, locale),
+  });
+});
+
+router.patch("/raw-tags/:id/resolve-existing", async (req, res) => {
+  const rawTagId = parseSubmissionId(req.params.id);
+  const locale = resolveLocale(req.query.locale);
+  const tagSlug = normalizeTagSlugInput(req.body?.tagSlug);
+
+  if (!rawTagId) {
+    res.status(404).json({
+      message: "Custom tag not found.",
+    });
+    return;
+  }
+
+  if (!tagSlug) {
+    res.status(400).json({
+      message: "Please select a public tag.",
+    });
+    return;
+  }
+
+  const rawTag = await prisma.submissionRawTag.findUnique({
+    where: {
+      id: rawTagId,
+    },
+    select: {
+      id: true,
+      submissionId: true,
+    },
+  });
+
+  if (!rawTag) {
+    res.status(404).json({
+      message: "Custom tag not found.",
+    });
+    return;
+  }
+
+  const targetTag = await prisma.tag.findUnique({
+    where: {
+      name: tagSlug,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!targetTag) {
+    res.status(404).json({
+      message: "Public tag not found.",
+    });
+    return;
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    await transaction.submissionRawTag.update({
+      where: {
+        id: rawTagId,
+      },
+      data: {
+        status: "resolved",
+        resolvedTagId: targetTag.id,
+      },
+    });
+
+    await transaction.submissionTag.upsert({
+      where: {
+        submissionId_tagId: {
+          submissionId: rawTag.submissionId,
+          tagId: targetTag.id,
+        },
+      },
+      update: {},
+      create: {
+        submissionId: rawTag.submissionId,
+        tagId: targetTag.id,
+      },
+    });
+  });
+
+  const submission = await getAdminSubmissionDetailRecord(rawTag.submissionId);
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission not found.",
+    });
+    return;
+  }
+
+  res.json({
+    message: "Custom tag resolved successfully.",
+    submission: toAdminSubmissionDetail(submission, locale),
+  });
+});
+
+router.post("/raw-tags/:id/create-tag", async (req, res) => {
+  const rawTagId = parseSubmissionId(req.params.id);
+  const locale = resolveLocale(req.query.locale);
+
+  if (!rawTagId) {
+    res.status(404).json({
+      message: "Custom tag not found.",
+    });
+    return;
+  }
+
+  const rawTag = await prisma.submissionRawTag.findUnique({
+    where: {
+      id: rawTagId,
+    },
+    select: {
+      id: true,
+      submissionId: true,
+    },
+  });
+
+  if (!rawTag) {
+    res.status(404).json({
+      message: "Custom tag not found.",
+    });
+    return;
+  }
+
+  try {
+    const payload = parseManagedTagPayload((req.body ?? {}) as Record<string, unknown>);
+
+    await prisma.$transaction(async (transaction) => {
+      const createdTag = await createManagedTag(transaction, payload);
+
+      await transaction.submissionRawTag.update({
+        where: {
+          id: rawTagId,
+        },
+        data: {
+          status: "resolved",
+          resolvedTagId: createdTag.id,
+        },
+      });
+
+      await transaction.submissionTag.upsert({
+        where: {
+          submissionId_tagId: {
+            submissionId: rawTag.submissionId,
+            tagId: createdTag.id,
+          },
+        },
+        update: {},
+        create: {
+          submissionId: rawTag.submissionId,
+          tagId: createdTag.id,
+        },
+      });
+    });
+
+    const submission = await getAdminSubmissionDetailRecord(rawTag.submissionId);
+
+    if (!submission) {
+      res.status(404).json({
+        message: "Submission not found.",
+      });
+      return;
+    }
+
+    res.status(201).json({
+      message: "Custom tag converted successfully.",
+      submission: toAdminSubmissionDetail(submission, locale),
+    });
+  } catch (error) {
+    if (error instanceof InvalidAdminActionError) {
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
+    throw error;
+  }
 });
 
 router.get("/submissions/:id/download", async (req, res) => {

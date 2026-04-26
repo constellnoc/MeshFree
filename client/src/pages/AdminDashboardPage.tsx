@@ -4,12 +4,16 @@ import { useNavigate } from "react-router-dom";
 
 import {
   approveSubmission,
+  createAdminTag,
+  createAdminTagFromRawTag,
   clearAdminToken,
   downloadAdminSubmissionZip,
   getAdminSubmissionDetail,
   getAdminSubmissions,
   getAdminToken,
+  ignoreAdminRawTag,
   rejectSubmission,
+  resolveAdminRawTagToExisting,
   deleteSubmission,
   updateSubmissionTags,
 } from "../api/admin";
@@ -18,11 +22,52 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { toIntlLocale } from "../lib/i18n";
 import { getScopeLevelClassName, maxSelectedTagsPerSubmission } from "../lib/tags";
 import type { AdminSubmissionDetail, AdminSubmissionStatus, AdminSubmissionSummary } from "../types/admin";
-import type { PublicTag } from "../types/tag";
+import type { ManagedTagPayload, PublicTag, TagScopeLevel } from "../types/tag";
 
 type SubmissionFilter = "all" | AdminSubmissionStatus;
+type RawTagActionMode = "resolve" | "create";
 
 const filterOptions: SubmissionFilter[] = ["pending", "approved", "rejected", "all"];
+const tagScopeOrder: Record<TagScopeLevel, number> = {
+  broad: 0,
+  medium: 1,
+  specific: 2,
+};
+
+function createEmptyManagedTagPayload(): ManagedTagPayload {
+  return {
+    slug: "",
+    displayNameEn: "",
+    displayNameZh: "",
+    scopeLevel: "medium",
+  };
+}
+
+function createManagedTagPayloadFromRawValue(rawValue: string): ManagedTagPayload {
+  const trimmedValue = rawValue.trim();
+
+  return {
+    slug: trimmedValue
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, ""),
+    displayNameEn: trimmedValue,
+    displayNameZh: trimmedValue,
+    scopeLevel: "medium",
+  };
+}
+
+function sortAvailableTags(tags: PublicTag[]) {
+  return [...tags].sort((left, right) => {
+    const scopeDifference = tagScopeOrder[left.scopeLevel] - tagScopeOrder[right.scopeLevel];
+
+    if (scopeDifference !== 0) {
+      return scopeDifference;
+    }
+
+    return left.label.localeCompare(right.label);
+  });
+}
 
 function formatDateTime(dateString: string | null, locale: string, notReviewedLabel: string): string {
   if (!dateString) {
@@ -56,6 +101,16 @@ export function AdminDashboardPage() {
   const [selectedSubmission, setSelectedSubmission] = useState<AdminSubmissionDetail | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [selectedTagSlugs, setSelectedTagSlugs] = useState<string[]>([]);
+  const [isCreateTagFormOpen, setIsCreateTagFormOpen] = useState(false);
+  const [managedTagForm, setManagedTagForm] = useState<ManagedTagPayload>(() => createEmptyManagedTagPayload());
+  const [activeRawTagAction, setActiveRawTagAction] = useState<{
+    rawTagId: number;
+    mode: RawTagActionMode;
+  } | null>(null);
+  const [activeRawTagTargetSlug, setActiveRawTagTargetSlug] = useState("");
+  const [activeRawTagManagedTagForm, setActiveRawTagManagedTagForm] = useState<ManagedTagPayload>(() =>
+    createEmptyManagedTagPayload(),
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -72,6 +127,14 @@ export function AdminDashboardPage() {
         return copy.admin.successRejected;
       case "Submission deleted successfully.":
         return copy.admin.successDeleted;
+      case "Admin tag created successfully.":
+        return copy.admin.successTagCreated;
+      case "Custom tag ignored successfully.":
+        return copy.admin.successRawTagIgnored;
+      case "Custom tag resolved successfully.":
+        return copy.admin.successRawTagResolved;
+      case "Custom tag converted successfully.":
+        return copy.admin.successRawTagConverted;
       default:
         return message;
     }
@@ -91,14 +154,14 @@ export function AdminDashboardPage() {
     const loadAvailableTags = async () => {
       try {
         const tags = await getPublicTags({ locale });
-        setAvailableTags(tags);
+        setAvailableTags(sortAvailableTags(tags));
       } catch (error) {
         setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
       }
     };
 
     void loadAvailableTags();
-  }, [locale]);
+  }, [copy.admin.requestFailed, locale]);
 
   const loadSubmissions = async (preferredSubmissionId?: number | null) => {
     if (!getAdminToken()) {
@@ -158,6 +221,11 @@ export function AdminDashboardPage() {
         setSelectedSubmission(detail);
         setRejectReason(detail.rejectReason ?? "");
         setSelectedTagSlugs(detail.tags.map((tag) => tag.slug));
+        setIsCreateTagFormOpen(false);
+        setManagedTagForm(createEmptyManagedTagPayload());
+        setActiveRawTagAction(null);
+        setActiveRawTagTargetSlug("");
+        setActiveRawTagManagedTagForm(createEmptyManagedTagPayload());
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           handleUnauthorized();
@@ -194,6 +262,52 @@ export function AdminDashboardPage() {
     });
   };
 
+  const applyUpdatedSubmission = (submission: AdminSubmissionDetail) => {
+    setSelectedSubmission(submission);
+    setSelectedTagSlugs(submission.tags.map((tag) => tag.slug));
+  };
+
+  const handleManagedTagFormChange = <K extends keyof ManagedTagPayload>(key: K, value: ManagedTagPayload[K]) => {
+    setManagedTagForm((currentForm) => ({
+      ...currentForm,
+      [key]: value,
+    }));
+  };
+
+  const handleActiveRawTagManagedTagFormChange = <K extends keyof ManagedTagPayload>(
+    key: K,
+    value: ManagedTagPayload[K],
+  ) => {
+    setActiveRawTagManagedTagForm((currentForm) => ({
+      ...currentForm,
+      [key]: value,
+    }));
+  };
+
+  const openResolveRawTag = (rawTagId: number) => {
+    setActiveRawTagAction({
+      rawTagId,
+      mode: "resolve",
+    });
+    setActiveRawTagTargetSlug("");
+    setActiveRawTagManagedTagForm(createEmptyManagedTagPayload());
+  };
+
+  const openCreateTagFromRawTag = (rawTagId: number, rawValue: string) => {
+    setActiveRawTagAction({
+      rawTagId,
+      mode: "create",
+    });
+    setActiveRawTagTargetSlug("");
+    setActiveRawTagManagedTagForm(createManagedTagPayloadFromRawValue(rawValue));
+  };
+
+  const closeRawTagAction = () => {
+    setActiveRawTagAction(null);
+    setActiveRawTagTargetSlug("");
+    setActiveRawTagManagedTagForm(createEmptyManagedTagPayload());
+  };
+
   const handleSaveTags = async () => {
     if (!selectedSubmission) {
       return;
@@ -213,6 +327,122 @@ export function AdminDashboardPage() {
       setSelectedSubmission(result.submission);
       setSelectedTagSlugs(result.submission.tags.map((tag) => tag.slug));
       setSuccessMessage(result.message);
+      await loadSubmissions(selectedSubmission.id);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const handleCreateAdminTag = async () => {
+    setIsSubmittingAction(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const result = await createAdminTag(managedTagForm, locale);
+      setAvailableTags((currentTags) => sortAvailableTags([...currentTags, result.tag]));
+      setSuccessMessage(result.message);
+      setManagedTagForm(createEmptyManagedTagPayload());
+      setIsCreateTagFormOpen(false);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const handleIgnoreRawTag = async (rawTagId: number) => {
+    if (!selectedSubmission) {
+      return;
+    }
+
+    setIsSubmittingAction(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const result = await ignoreAdminRawTag(rawTagId, locale);
+      applyUpdatedSubmission(result.submission);
+      setSuccessMessage(result.message);
+      closeRawTagAction();
+      await loadSubmissions(selectedSubmission.id);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const handleResolveRawTagToExisting = async (rawTagId: number) => {
+    if (!selectedSubmission) {
+      return;
+    }
+
+    if (!activeRawTagTargetSlug) {
+      setErrorMessage(copy.admin.requiredResolveTag);
+      return;
+    }
+
+    setIsSubmittingAction(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const result = await resolveAdminRawTagToExisting(rawTagId, activeRawTagTargetSlug, locale);
+      applyUpdatedSubmission(result.submission);
+      setSuccessMessage(result.message);
+      closeRawTagAction();
+      await loadSubmissions(selectedSubmission.id);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const handleCreateTagFromRawTag = async (rawTagId: number) => {
+    if (!selectedSubmission) {
+      return;
+    }
+
+    setIsSubmittingAction(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const result = await createAdminTagFromRawTag(rawTagId, activeRawTagManagedTagForm, locale);
+      applyUpdatedSubmission(result.submission);
+      setAvailableTags((currentTags) => {
+        const nextTag = result.submission.rawTags.find((rawTag) => rawTag.id === rawTagId)?.resolvedTag;
+
+        return nextTag
+          ? sortAvailableTags([...currentTags.filter((tag) => tag.slug !== nextTag.slug), nextTag])
+          : currentTags;
+      });
+      setSuccessMessage(result.message);
+      closeRawTagAction();
       await loadSubmissions(selectedSubmission.id);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -275,7 +505,7 @@ export function AdminDashboardPage() {
         return;
       }
 
-      setErrorMessage(getDashboardErrorMessage(error));
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
     } finally {
       setIsSubmittingAction(false);
     }
@@ -300,7 +530,7 @@ export function AdminDashboardPage() {
         return;
       }
 
-      setErrorMessage(getDashboardErrorMessage(error));
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
     } finally {
       setIsSubmittingAction(false);
     }
@@ -330,7 +560,7 @@ export function AdminDashboardPage() {
         return;
       }
 
-      setErrorMessage(getDashboardErrorMessage(error));
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
     }
   };
 
@@ -527,18 +757,259 @@ export function AdminDashboardPage() {
                     >
                       {copy.admin.saveTags}
                     </button>
+                    <button
+                      className="button-link secondary"
+                      type="button"
+                      onClick={() => {
+                        setIsCreateTagFormOpen((currentValue) => !currentValue);
+                        setManagedTagForm(createEmptyManagedTagPayload());
+                      }}
+                      disabled={isSubmittingAction}
+                    >
+                      {copy.admin.createTagToggle}
+                    </button>
                   </div>
+                  {isCreateTagFormOpen ? (
+                    <div className="admin-inline-form">
+                      <p className="form-label">{copy.admin.createTagSectionTitle}</p>
+                      <p className="form-help">{copy.admin.createTagSectionLead}</p>
+                      <label className="form-field">
+                        <span className="form-label">{copy.admin.tagSlugLabel}</span>
+                        <input
+                          className="form-input"
+                          type="text"
+                          value={managedTagForm.slug}
+                          onChange={(event) => handleManagedTagFormChange("slug", event.target.value)}
+                          placeholder={copy.admin.tagSlugPlaceholder}
+                          disabled={isSubmittingAction}
+                        />
+                      </label>
+                      <label className="form-field">
+                        <span className="form-label">{copy.admin.tagNameEnLabel}</span>
+                        <input
+                          className="form-input"
+                          type="text"
+                          value={managedTagForm.displayNameEn}
+                          onChange={(event) => handleManagedTagFormChange("displayNameEn", event.target.value)}
+                          placeholder={copy.admin.tagNameEnPlaceholder}
+                          disabled={isSubmittingAction}
+                        />
+                      </label>
+                      <label className="form-field">
+                        <span className="form-label">{copy.admin.tagNameZhLabel}</span>
+                        <input
+                          className="form-input"
+                          type="text"
+                          value={managedTagForm.displayNameZh}
+                          onChange={(event) => handleManagedTagFormChange("displayNameZh", event.target.value)}
+                          placeholder={copy.admin.tagNameZhPlaceholder}
+                          disabled={isSubmittingAction}
+                        />
+                      </label>
+                      <label className="form-field">
+                        <span className="form-label">{copy.admin.tagScopeLabel}</span>
+                        <select
+                          className="form-input"
+                          value={managedTagForm.scopeLevel}
+                          onChange={(event) =>
+                            handleManagedTagFormChange("scopeLevel", event.target.value as TagScopeLevel)
+                          }
+                          disabled={isSubmittingAction}
+                        >
+                          <option value="broad">{copy.admin.tagScopeValues.broad}</option>
+                          <option value="medium">{copy.admin.tagScopeValues.medium}</option>
+                          <option value="specific">{copy.admin.tagScopeValues.specific}</option>
+                        </select>
+                      </label>
+                      <div className="actions">
+                        <button
+                          className="button-link"
+                          type="button"
+                          onClick={handleCreateAdminTag}
+                          disabled={isSubmittingAction}
+                        >
+                          {copy.admin.createTagSubmit}
+                        </button>
+                        <button
+                          className="button-link secondary"
+                          type="button"
+                          onClick={() => {
+                            setIsCreateTagFormOpen(false);
+                            setManagedTagForm(createEmptyManagedTagPayload());
+                          }}
+                          disabled={isSubmittingAction}
+                        >
+                          {copy.admin.cancelRawTagAction}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="form-field">
                   <span className="form-label">{copy.admin.privateSuggestedTagsLabel}</span>
                   <span className="form-help">{copy.admin.privateSuggestedTagsHelp}</span>
                   {selectedSubmission.rawTags.length > 0 ? (
-                    <div className="selected-tag-list">
+                    <div className="admin-raw-tag-list">
                       {selectedSubmission.rawTags.map((rawTag) => (
-                        <span key={rawTag.id} className="selected-tag-chip raw-tag-chip">
-                          {rawTag.value}
-                        </span>
+                        <div key={rawTag.id} className="admin-raw-tag-card">
+                          <div className="admin-raw-tag-header">
+                            <span className="selected-tag-chip raw-tag-chip">{rawTag.value}</span>
+                            <span className={`status-badge admin-raw-tag-status admin-raw-tag-status-${rawTag.status}`}>
+                              {copy.admin.rawTagStatusValues[rawTag.status]}
+                            </span>
+                          </div>
+                          {rawTag.resolvedTag ? (
+                            <p className="form-help">
+                              {copy.admin.resolvedToLabel}: {rawTag.resolvedTag.label}
+                            </p>
+                          ) : null}
+                          <div className="actions admin-raw-tag-actions">
+                            <button
+                              className="button-link secondary"
+                              type="button"
+                              onClick={() => openResolveRawTag(rawTag.id)}
+                              disabled={isSubmittingAction}
+                            >
+                              {copy.admin.resolveToExisting}
+                            </button>
+                            <button
+                              className="button-link secondary"
+                              type="button"
+                              onClick={() => openCreateTagFromRawTag(rawTag.id, rawTag.value)}
+                              disabled={isSubmittingAction}
+                            >
+                              {copy.admin.createFromRawTag}
+                            </button>
+                            {rawTag.status !== "ignored" ? (
+                              <button
+                                className="button-link secondary"
+                                type="button"
+                                onClick={() => handleIgnoreRawTag(rawTag.id)}
+                                disabled={isSubmittingAction}
+                              >
+                                {copy.admin.ignoreRawTag}
+                              </button>
+                            ) : null}
+                          </div>
+                          {activeRawTagAction?.rawTagId === rawTag.id && activeRawTagAction.mode === "resolve" ? (
+                            <div className="admin-inline-form">
+                              <label className="form-field">
+                                <span className="form-label">{copy.admin.resolveSelectLabel}</span>
+                                <select
+                                  className="form-input"
+                                  value={activeRawTagTargetSlug}
+                                  onChange={(event) => setActiveRawTagTargetSlug(event.target.value)}
+                                  disabled={isSubmittingAction}
+                                >
+                                  <option value="">{copy.admin.resolveSelectPlaceholder}</option>
+                                  {availableTags.map((tag) => (
+                                    <option key={tag.slug} value={tag.slug}>
+                                      {tag.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="actions">
+                                <button
+                                  className="button-link"
+                                  type="button"
+                                  onClick={() => handleResolveRawTagToExisting(rawTag.id)}
+                                  disabled={isSubmittingAction}
+                                >
+                                  {copy.admin.resolveConfirm}
+                                </button>
+                                <button
+                                  className="button-link secondary"
+                                  type="button"
+                                  onClick={closeRawTagAction}
+                                  disabled={isSubmittingAction}
+                                >
+                                  {copy.admin.cancelRawTagAction}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                          {activeRawTagAction?.rawTagId === rawTag.id && activeRawTagAction.mode === "create" ? (
+                            <div className="admin-inline-form">
+                              <label className="form-field">
+                                <span className="form-label">{copy.admin.tagSlugLabel}</span>
+                                <input
+                                  className="form-input"
+                                  type="text"
+                                  value={activeRawTagManagedTagForm.slug}
+                                  onChange={(event) =>
+                                    handleActiveRawTagManagedTagFormChange("slug", event.target.value)
+                                  }
+                                  placeholder={copy.admin.tagSlugPlaceholder}
+                                  disabled={isSubmittingAction}
+                                />
+                              </label>
+                              <label className="form-field">
+                                <span className="form-label">{copy.admin.tagNameEnLabel}</span>
+                                <input
+                                  className="form-input"
+                                  type="text"
+                                  value={activeRawTagManagedTagForm.displayNameEn}
+                                  onChange={(event) =>
+                                    handleActiveRawTagManagedTagFormChange("displayNameEn", event.target.value)
+                                  }
+                                  placeholder={copy.admin.tagNameEnPlaceholder}
+                                  disabled={isSubmittingAction}
+                                />
+                              </label>
+                              <label className="form-field">
+                                <span className="form-label">{copy.admin.tagNameZhLabel}</span>
+                                <input
+                                  className="form-input"
+                                  type="text"
+                                  value={activeRawTagManagedTagForm.displayNameZh}
+                                  onChange={(event) =>
+                                    handleActiveRawTagManagedTagFormChange("displayNameZh", event.target.value)
+                                  }
+                                  placeholder={copy.admin.tagNameZhPlaceholder}
+                                  disabled={isSubmittingAction}
+                                />
+                              </label>
+                              <label className="form-field">
+                                <span className="form-label">{copy.admin.tagScopeLabel}</span>
+                                <select
+                                  className="form-input"
+                                  value={activeRawTagManagedTagForm.scopeLevel}
+                                  onChange={(event) =>
+                                    handleActiveRawTagManagedTagFormChange(
+                                      "scopeLevel",
+                                      event.target.value as TagScopeLevel,
+                                    )
+                                  }
+                                  disabled={isSubmittingAction}
+                                >
+                                  <option value="broad">{copy.admin.tagScopeValues.broad}</option>
+                                  <option value="medium">{copy.admin.tagScopeValues.medium}</option>
+                                  <option value="specific">{copy.admin.tagScopeValues.specific}</option>
+                                </select>
+                              </label>
+                              <div className="actions">
+                                <button
+                                  className="button-link"
+                                  type="button"
+                                  onClick={() => handleCreateTagFromRawTag(rawTag.id)}
+                                  disabled={isSubmittingAction}
+                                >
+                                  {copy.admin.createTagSubmit}
+                                </button>
+                                <button
+                                  className="button-link secondary"
+                                  type="button"
+                                  onClick={closeRawTagAction}
+                                  disabled={isSubmittingAction}
+                                >
+                                  {copy.admin.cancelRawTagAction}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                   ) : (

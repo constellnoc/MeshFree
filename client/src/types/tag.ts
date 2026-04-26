@@ -12,3 +12,10 @@ export interface AdminRawTag {
   status: "pending" | "resolved" | "ignored";
   resolvedTag: PublicTag | null;
 }
+
+export interface ManagedTagPayload {
+  slug: string;
+  displayNameEn: string;
+  displayNameZh: string;
+  scopeLevel: TagScopeLevel;
+}

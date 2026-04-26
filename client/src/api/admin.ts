@@ -7,6 +7,7 @@ import type {
   AdminSubmissionSummary,
 } from "../types/admin";
 import type { AppLocale } from "../lib/i18n";
+import type { ManagedTagPayload, PublicTag } from "../types/tag";
 
 export const adminTokenStorageKey = "meshfree_admin_token";
 
@@ -133,6 +134,58 @@ export async function updateSubmissionTags(
       params: { locale },
     },
   );
+
+  return response.data;
+}
+
+export async function createAdminTag(payload: ManagedTagPayload, locale: AppLocale = "en") {
+  const response = await http.post<{
+    message: string;
+    tag: PublicTag;
+  }>("/admin/tags", payload, {
+    headers: getAuthHeaders(),
+    params: { locale },
+  });
+
+  return response.data;
+}
+
+export async function ignoreAdminRawTag(rawTagId: number, locale: AppLocale = "en") {
+  const response = await http.patch<{
+    message: string;
+    submission: AdminSubmissionDetail;
+  }>(`/admin/raw-tags/${rawTagId}/ignore`, undefined, {
+    headers: getAuthHeaders(),
+    params: { locale },
+  });
+
+  return response.data;
+}
+
+export async function resolveAdminRawTagToExisting(rawTagId: number, tagSlug: string, locale: AppLocale = "en") {
+  const response = await http.patch<{
+    message: string;
+    submission: AdminSubmissionDetail;
+  }>(
+    `/admin/raw-tags/${rawTagId}/resolve-existing`,
+    { tagSlug },
+    {
+      headers: getAuthHeaders(),
+      params: { locale },
+    },
+  );
+
+  return response.data;
+}
+
+export async function createAdminTagFromRawTag(rawTagId: number, payload: ManagedTagPayload, locale: AppLocale = "en") {
+  const response = await http.post<{
+    message: string;
+    submission: AdminSubmissionDetail;
+  }>(`/admin/raw-tags/${rawTagId}/create-tag`, payload, {
+    headers: getAuthHeaders(),
+    params: { locale },
+  });
 
   return response.data;
 }

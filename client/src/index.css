@@ -1162,6 +1162,61 @@ html[lang="zh-CN"] body {
   margin-bottom: 0;
 }
 
+.admin-inline-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.admin-raw-tag-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-raw-tag-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.admin-raw-tag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-raw-tag-actions {
+  margin-top: 0;
+}
+
+.admin-raw-tag-status {
+  text-transform: none;
+}
+
+.admin-raw-tag-status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.admin-raw-tag-status-resolved {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.admin-raw-tag-status-ignored {
+  background: #e2e8f0;
+  color: #475569;
+}
+
 .destructive-button {
   background: #dc2626;
   color: #ffffff;
