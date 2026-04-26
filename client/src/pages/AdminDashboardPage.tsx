@@ -469,6 +469,36 @@ export function AdminDashboardPage() {
                 <div className="form-field">
                   <span className="form-label">{copy.admin.publicTagsLabel}</span>
                   <span className="form-help">{copy.admin.publicTagsHelp(maxSelectedTagsPerSubmission)}</span>
+                  {selectedTagSlugs.length > 0 ? (
+                    <div className="selected-tag-list" aria-live="polite">
+                      {selectedTagSlugs.map((tagSlug) => {
+                        const matchingTag = availableTags.find((tag) => tag.slug === tagSlug);
+
+                        if (!matchingTag) {
+                          return null;
+                        }
+
+                        return (
+                          <button
+                            key={matchingTag.slug}
+                            className={[
+                              "selected-tag-chip",
+                              getScopeLevelClassName(matchingTag.scopeLevel),
+                              "selected-tag-chip-active",
+                            ].join(" ")}
+                            type="button"
+                            onClick={() => handleToggleSelectedTag(matchingTag.slug)}
+                            disabled={isSubmittingAction}
+                          >
+                            {matchingTag.label}
+                            <span aria-hidden="true"> ×</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="form-help">{copy.admin.noPublicTagsSaved}</p>
+                  )}
                   <div className="tag-chip-list">
                     {availableTags.map((tag) => (
                       <button
@@ -488,20 +518,6 @@ export function AdminDashboardPage() {
                       </button>
                     ))}
                   </div>
-                  {selectedSubmission.tags.length > 0 ? (
-                    <div className="selected-tag-list">
-                      {selectedSubmission.tags.map((tag) => (
-                        <span
-                          key={tag.slug}
-                          className={`selected-tag-chip ${getScopeLevelClassName(tag.scopeLevel)}`}
-                        >
-                          {tag.label}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="form-help">{copy.admin.noPublicTagsSaved}</p>
-                  )}
                   <div className="actions">
                     <button
                       className="button-link secondary"
