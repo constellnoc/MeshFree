@@ -4,9 +4,15 @@ import bcrypt from "bcryptjs";
 
 import prisma from "../lib/prisma";
 
+const localAdminDefaults = {
+  username: "local",
+  password: "123",
+} as const;
+
 async function main() {
-  const adminUsername = process.env.ADMIN_MANAGE_USERNAME?.trim();
-  const adminPassword = process.env.ADMIN_MANAGE_PASSWORD;
+  const isProduction = process.env.NODE_ENV === "production";
+  const adminUsername = process.env.ADMIN_MANAGE_USERNAME?.trim() ?? (!isProduction ? localAdminDefaults.username : undefined);
+  const adminPassword = process.env.ADMIN_MANAGE_PASSWORD ?? (!isProduction ? localAdminDefaults.password : undefined);
 
   if (!adminUsername) {
     throw new Error("ADMIN_MANAGE_USERNAME is required to manage the admin account.");

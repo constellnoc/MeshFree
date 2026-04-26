@@ -78,10 +78,10 @@
 - Email: your-name@example.com / 邮箱：your-name@example.com
 - Preset tags / 预设标签
 - Select up to {maxTags} public tags. These are the tags that can become visible after review. / 最多选择 {maxTags} 个公开标签。这些标签将在审核通过后对访客可见。
-- Suggested tags / 建议标签
-- Suggest a new tag for admin review / 向管理员建议新标签
+- Suggested tags / 自定义标签
+- Suggest a new tag for admin review / 添加一个自定义标签
 - Add suggestion / 添加建议
-- Suggested tags stay private. Only the administrator can decide whether they become a new public tag or an alias for an existing tag. / 建议标签不会公开。仅管理员可决定将其转为新的公开标签，或作为现有标签的别名。
+- Suggested tags stay private. Only the administrator can decide whether they become a new public tag or an alias for an existing tag. / 自定义标签不会公开。仅管理员可决定将其转为新的公开标签，或作为现有标签的别名。
 - Cover image / 封面图片
 - Accepted: JPG, JPEG, PNG, WEBP. Max 2MB. / 支持格式：JPG, JPEG, PNG, WEBP。最大 2MB。
 - Model ZIP / 模型 ZIP
@@ -89,7 +89,7 @@
 - Reset / 重置
 - Uploading... / 上传中...
 - Upload for review / 提交审核
-- Text fields, selected preset tags, and suggested tags are saved locally in this browser. File inputs must be selected again after refresh or reset. / 文本字段、已选预设标签和建议标签将保存在本地浏览器中。刷新或重置后需重新选择文件。
+- Text fields, selected preset tags, and suggested tags are saved locally in this browser. File inputs must be selected again after refresh or reset. / 文本字段、已选预设标签和自定义标签将保存在本地浏览器中。刷新或重置后需重新选择文件。
 - Upload rules / 上传规则
 - All fields are required. / 所有字段均必填。
 - Only one cover image and one ZIP file are allowed. / 仅允许上传一张封面图片和一个 ZIP 文件。
@@ -108,7 +108,7 @@
 - Model file must be a ZIP archive. / 模型文件必须为 ZIP 压缩包。
 - Model ZIP must not exceed {maxMb}MB. / 模型 ZIP 大小不能超过 {maxMb}MB。
 - Please select up to {maxTags} preset tags. / 请最多选择 {maxTags} 个预设标签。
-- Please use up to {maxTags} suggested tags. / 请最多使用 {maxTags} 个建议标签。
+- Please use up to {maxTags} suggested tags. / 请最多使用 {maxTags} 个自定义标签。
 - Each tag must be between {minLength} and {maxLength} characters. / 每个标签的长度必须在 {minLength} 到 {maxLength} 个字符之间。
 
 ## Admin Login / 管理员登录
@@ -157,9 +157,9 @@
 - Choose up to {maxTags} public tags. These are the only tags visible to visitors after approval. / 最多选择 {maxTags} 个公开标签。这些是审核通过后访客唯一可见的标签。
 - No public tags saved yet. / 尚未保存公开标签。
 - Save tags / 保存标签
-- Private suggested tags / 私有建议标签
+- Private suggested tags / 私有自定义标签
 - These suggestions are visible only to the administrator until they are reviewed. / 这些建议在审核前仅对管理员可见。
-- No private tag suggestions were submitted. / 未提交私有建议标签。
+- No private tag suggestions were submitted. / 未提交私有自定义标签。
 - Explain why this submission should be rejected. / 请说明拒绝此投稿的原因。
 - Download ZIP / 下载 ZIP
 - Approve / 通过
