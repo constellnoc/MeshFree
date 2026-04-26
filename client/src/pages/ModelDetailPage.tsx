@@ -2,13 +2,15 @@ import { Fragment, Suspense, lazy, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getApprovedModelDetail } from "../api/models";
-import { currentTagLocale, getScopeLevelClassName } from "../lib/tags";
+import { useLanguage } from "../contexts/LanguageContext";
+import { toIntlLocale } from "../lib/i18n";
+import { getScopeLevelClassName } from "../lib/tags";
 import type { ModelDetail } from "../types/model";
 
 const LazyModelPreviewViewer = lazy(() => import("../components/ModelPreviewViewer"));
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
+function formatDate(dateString: string, locale: string): string {
+  return new Date(dateString).toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -20,6 +22,7 @@ interface ModelDetailPageProps {
 }
 
 export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps) {
+  const { locale, copy } = useLanguage();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [model, setModel] = useState<ModelDetail | null>(null);
@@ -31,18 +34,18 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
   useEffect(() => {
     const loadModelDetail = async () => {
       if (!id) {
-        setErrorMessage("Model not found.");
+        setErrorMessage(copy.modelDetail.notFound);
         setIsLoading(false);
         return;
       }
 
       try {
-        const data = await getApprovedModelDetail(id, currentTagLocale);
+        const data = await getApprovedModelDetail(id, locale);
         setModel(data);
         setErrorMessage("");
       } catch (error) {
         setModel(null);
-        setErrorMessage(`Failed to load model detail: ${String(error)}`);
+        setErrorMessage(copy.modelDetail.failedLoad(String(error)));
       } finally {
         setIsLoading(false);
       }
@@ -50,7 +53,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
 
     setIsLoading(true);
     void loadModelDetail();
-  }, [id]);
+  }, [copy.modelDetail.notFound, id, locale]);
 
   useEffect(() => {
     setIsViewerOpen(false);
@@ -95,8 +98,8 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
     const loadingContent = (
       <section className={isModal ? "page-grid modal-detail-grid" : "page-grid"}>
         <div className="card">
-          <h2>Loading model</h2>
-          <p>The client is requesting `/api/models/{id || ":id"}`.</p>
+          <h2>{copy.modelDetail.loadingTitle}</h2>
+          <p>{copy.modelDetail.loadingBody(id)}</p>
         </div>
       </section>
     );
@@ -104,7 +107,12 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
     return isModal ? (
       <div className="detail-modal-overlay" onClick={handleClose}>
         <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
-          <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+          <button
+            className="detail-modal-close"
+            type="button"
+            onClick={handleClose}
+            aria-label={copy.modelDetail.closePreviewAriaLabel}
+          >
             <span className="detail-modal-close-icon" aria-hidden="true" />
           </button>
           {loadingContent}
@@ -119,11 +127,11 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
     const errorContent = (
       <section className={isModal ? "page-grid modal-detail-grid" : "page-grid"}>
         <div className="card">
-          <h2>Model unavailable</h2>
-          <p>{errorMessage || "Model not found."}</p>
+          <h2>{copy.modelDetail.unavailableTitle}</h2>
+          <p>{errorMessage || copy.modelDetail.notFound}</p>
           {!isModal ? (
             <Link className="button-link" to="/">
-              Back to home
+              {copy.modelDetail.backToHome}
             </Link>
           ) : null}
         </div>
@@ -133,7 +141,12 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
     return isModal ? (
       <div className="detail-modal-overlay" onClick={handleClose}>
         <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
-          <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+          <button
+            className="detail-modal-close"
+            type="button"
+            onClick={handleClose}
+            aria-label={copy.modelDetail.closePreviewAriaLabel}
+          >
             <span className="detail-modal-close-icon" aria-hidden="true" />
           </button>
           {errorContent}
@@ -152,7 +165,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
           {model.previewModelUrl ? (
             <div className="detail-preview-overlay">
               <button className="detail-preview-trigger" type="button" onClick={() => setIsViewerOpen(true)}>
-                Preview
+                {copy.modelDetail.preview}
               </button>
             </div>
           ) : null}
@@ -160,7 +173,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
       </div>
 
       <div className="card detail-card">
-        <p className="section-kicker">{isModal ? "Model Preview" : "Model Detail"}</p>
+        <p className="section-kicker">{isModal ? copy.modelDetail.modalKicker : copy.modelDetail.pageKicker}</p>
         <h2>{model.title}</h2>
         <div className={isModal ? "detail-description detail-description-scroll" : "detail-description"}>
           <p>{model.description}</p>
@@ -178,14 +191,14 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
             ))}
           </div>
         ) : null}
-        <p className="model-date">Created {formatDate(model.createdAt)}</p>
+        <p className="model-date">{copy.modelDetail.createdOn(formatDate(model.createdAt, toIntlLocale(locale)))}</p>
         <div className="actions">
           <a className="button-link" href={`/api/models/${model.id}/download`}>
-            Download ZIP
+            {copy.modelDetail.downloadZip}
           </a>
           {!isModal ? (
             <Link className="button-link secondary" to="/">
-              Back to home
+              {copy.modelDetail.backToHome}
             </Link>
           ) : null}
         </div>
@@ -203,7 +216,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
               <Suspense
                 fallback={
                   <div className="viewer-modal-loading" role="status" aria-live="polite">
-                    <p>Preparing 3D preview...</p>
+                    <p>{copy.modelDetail.preparingPreview}</p>
                   </div>
                 }
               >
@@ -220,7 +233,12 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
     <Fragment>
       <div className="detail-modal-overlay" onClick={handleClose}>
         <div className="detail-modal-shell" onClick={(event) => event.stopPropagation()}>
-          <button className="detail-modal-close" type="button" onClick={handleClose} aria-label="Close model preview">
+          <button
+            className="detail-modal-close"
+            type="button"
+            onClick={handleClose}
+            aria-label={copy.modelDetail.closePreviewAriaLabel}
+          >
             <span className="detail-modal-close-icon" aria-hidden="true" />
           </button>
           {detailContent}
@@ -233,7 +251,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
             <Suspense
               fallback={
                 <div className="viewer-modal-loading" role="status" aria-live="polite">
-                  <p>Preparing 3D preview...</p>
+                  <p>{copy.modelDetail.preparingPreview}</p>
                 </div>
               }
             >

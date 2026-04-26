@@ -6,6 +6,8 @@ import type { Color, Material, Mesh, Object3D, PerspectiveCamera, Texture } from
 import { ACESFilmicToneMapping, Box3, DoubleSide, SRGBColorSpace, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
+import { useLanguage } from "../contexts/LanguageContext";
+
 interface ModelPreviewViewerProps {
   modelUrl: string;
   title: string;
@@ -62,10 +64,10 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
   }
 }
 
-function ViewerLoadingState() {
+function ViewerLoadingState({ message }: { message: string }) {
   return (
     <div className="detail-viewer-loading" role="status" aria-live="polite">
-      <p>Loading model preview...</p>
+      <p>{message}</p>
     </div>
   );
 }
@@ -357,32 +359,39 @@ function PreviewScene({
 }
 
 export default function ModelPreviewViewer({ modelUrl, title, onClose }: ModelPreviewViewerProps) {
+  const { copy } = useLanguage();
   const [resetVersion, setResetVersion] = useState(0);
   const [backgroundPreset, setBackgroundPreset] = useState<ViewerBackgroundPreset>("white");
-  const activeBackground = viewerBackgroundPresets.find((preset) => preset.id === backgroundPreset) ?? viewerBackgroundPresets[0];
+  const localizedBackgroundLabels = copy.viewer.backgroundPresetLabels;
+  const activeBackground =
+    viewerBackgroundPresets.find((preset) => preset.id === backgroundPreset) ?? viewerBackgroundPresets[0];
 
   return (
     <div className={`detail-viewer-shell detail-viewer-shell-${backgroundPreset}`}>
       <div className="detail-viewer-toolbar">
         <div className="detail-viewer-label">{title}</div>
         <div className="detail-viewer-toolbar-actions">
-          <div className="detail-viewer-background-group" role="group" aria-label="Viewer background color">
+          <div
+            className="detail-viewer-background-group"
+            role="group"
+            aria-label={copy.viewer.backgroundGroupAriaLabel}
+          >
             {viewerBackgroundPresets.map((preset) => (
               <button
                 key={preset.id}
                 className={`detail-viewer-swatch detail-viewer-swatch-${preset.id}${preset.id === backgroundPreset ? " is-active" : ""}`}
                 type="button"
                 onClick={() => setBackgroundPreset(preset.id)}
-                aria-label={`Switch background to ${preset.label}`}
-                title={preset.label}
+                aria-label={copy.viewer.switchBackgroundTo(localizedBackgroundLabels[preset.id])}
+                title={localizedBackgroundLabels[preset.id]}
               />
             ))}
           </div>
           <button className="button-link secondary detail-viewer-button" type="button" onClick={() => setResetVersion((value) => value + 1)}>
-            Reset view
+            {copy.viewer.resetView}
           </button>
           <button className="button-link secondary detail-viewer-button" type="button" onClick={onClose}>
-            Close
+            {copy.viewer.close}
           </button>
         </div>
       </div>
@@ -390,9 +399,9 @@ export default function ModelPreviewViewer({ modelUrl, title, onClose }: ModelPr
       <ViewerErrorBoundary
         fallback={
           <div className="detail-viewer-error" role="alert">
-            <p>3D preview is unavailable for this file.</p>
+            <p>{copy.viewer.unavailable}</p>
             <button className="button-link secondary detail-viewer-button" type="button" onClick={onClose}>
-              Close
+              {copy.viewer.close}
             </button>
           </div>
         }
@@ -410,7 +419,7 @@ export default function ModelPreviewViewer({ modelUrl, title, onClose }: ModelPr
           <Suspense
             fallback={
               <Html center>
-                <ViewerLoadingState />
+                <ViewerLoadingState message={copy.viewer.loading} />
               </Html>
             }
           >
@@ -419,8 +428,8 @@ export default function ModelPreviewViewer({ modelUrl, title, onClose }: ModelPr
         </Canvas>
       </ViewerErrorBoundary>
 
-      <p className="detail-viewer-hint">Drag to rotate and scroll to zoom.</p>
-      <span className="sr-only">{title} 3D preview viewer.</span>
+      <p className="detail-viewer-hint">{copy.viewer.hint}</p>
+      <span className="sr-only">{copy.viewer.srOnlyTitle(title)}</span>
     </div>
   );
 }

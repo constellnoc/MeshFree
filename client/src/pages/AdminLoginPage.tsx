@@ -5,16 +5,18 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 
 import { getAdminToken, loginAsAdmin, setAdminToken } from "../api/admin";
+import { useLanguage } from "../contexts/LanguageContext";
 
-function getLoginErrorMessage(error: unknown): string {
+function getLoginErrorMessage(error: unknown, fallbackMessage: string): string {
   if (axios.isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? "Failed to log in. Please try again.";
+    return error.response?.data?.message ?? fallbackMessage;
   }
 
-  return error instanceof Error ? error.message : "Failed to log in. Please try again.";
+  return error instanceof Error ? error.message : fallbackMessage;
 }
 
 export function AdminLoginPage() {
+  const { copy } = useLanguage();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +28,7 @@ export function AdminLoginPage() {
     event.preventDefault();
 
     if (!username.trim() || !password.trim()) {
-      setErrorMessage("Please enter both username and password.");
+      setErrorMessage(copy.adminLogin.requiredCredentials);
       return;
     }
 
@@ -41,7 +43,7 @@ export function AdminLoginPage() {
       setAdminToken(result.token);
       navigate("/admin/dashboard");
     } catch (error) {
-      setErrorMessage(getLoginErrorMessage(error));
+      setErrorMessage(getLoginErrorMessage(error, copy.adminLogin.failedLogin));
     } finally {
       setIsSubmitting(false);
     }
@@ -50,28 +52,25 @@ export function AdminLoginPage() {
   return (
     <section className="page-grid">
       <div className="card">
-        <p className="section-kicker">Admin Access</p>
-        <h2>Sign in to the review dashboard</h2>
-        <p>
-          Only the seeded administrator account can access review actions for
-          pending submissions.
-        </p>
+        <p className="section-kicker">{copy.adminLogin.kicker}</p>
+        <h2>{copy.adminLogin.title}</h2>
+        <p>{copy.adminLogin.intro}</p>
 
         <form className="submission-form" onSubmit={handleLogin}>
           <label className="form-field">
-            <span className="form-label">Username</span>
+            <span className="form-label">{copy.adminLogin.username}</span>
             <input
               className="form-input"
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              placeholder="Enter username"
+              placeholder={copy.adminLogin.usernamePlaceholder}
               disabled={isSubmitting}
             />
           </label>
 
           <label className="form-field">
-            <span className="form-label">Password</span>
+            <span className="form-label">{copy.adminLogin.password}</span>
             <input
               className="form-input"
               type="password"
@@ -83,7 +82,7 @@ export function AdminLoginPage() {
 
           <div className="actions">
             <button className="button-link" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Signing in..." : "Sign in"}
+              {isSubmitting ? copy.adminLogin.signingIn : copy.adminLogin.signIn}
             </button>
           </div>
         </form>
@@ -92,16 +91,16 @@ export function AdminLoginPage() {
       </div>
 
       <div className="card">
-        <h2>Review workflow</h2>
-        <p>After login, the dashboard lets the administrator:</p>
+        <h2>{copy.adminLogin.workflowTitle}</h2>
+        <p>{copy.adminLogin.workflowIntro}</p>
         <ul className="plain-list">
-          <li>View all submissions or filter by review status.</li>
-          <li>Inspect contact info, cover image, and stored ZIP name.</li>
-          <li>Approve, reject, or delete a submission.</li>
+          <li>{copy.adminLogin.workflowView}</li>
+          <li>{copy.adminLogin.workflowInspect}</li>
+          <li>{copy.adminLogin.workflowManage}</li>
         </ul>
         <div className="actions">
           <Link className="button-link secondary" to="/admin/dashboard">
-            {hasStoredToken ? "Go to dashboard" : "Open dashboard"}
+            {hasStoredToken ? copy.adminLogin.goToDashboard : copy.adminLogin.openDashboard}
           </Link>
         </div>
       </div>

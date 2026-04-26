@@ -1,7 +1,11 @@
+import { useLanguage } from "../contexts/LanguageContext";
+
 export function SiteInfoBlock() {
+  const { copy } = useLanguage();
+
   return (
     <>
-      <p className="footer-about">A lightweight platform for 3D model sharing and review.</p>
+      <p className="footer-about">{copy.footer.description}</p>
       <div className="footer-links">
         <a
           className="footer-link-with-icon"
@@ -22,9 +26,11 @@ export function SiteInfoBlock() {
           </svg>
           GitHub
         </a>
-        <a href="mailto:constellnoc@gmail.com">Contact: constellnoc@gmail.com</a>
+        <a href="mailto:constellnoc@gmail.com">
+          {copy.footer.contact}: constellnoc@gmail.com
+        </a>
       </div>
-      <p className="footer-meta">Copyright © 2026 Noctiluca</p>
+      <p className="footer-meta">{copy.footer.copyright}</p>
     </>
   );
 }

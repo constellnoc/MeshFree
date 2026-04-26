@@ -6,6 +6,7 @@ import type {
   AdminSubmissionStatus,
   AdminSubmissionSummary,
 } from "../types/admin";
+import type { AppLocale } from "../lib/i18n";
 
 export const adminTokenStorageKey = "meshfree_admin_token";
 
@@ -66,19 +67,19 @@ export async function loginAsAdmin(payload: AdminLoginPayload) {
   return response.data;
 }
 
-export async function getAdminSubmissions(status?: AdminSubmissionStatus) {
+export async function getAdminSubmissions(status?: AdminSubmissionStatus, locale: AppLocale = "en") {
   const response = await http.get<AdminSubmissionSummary[]>("/admin/submissions", {
     headers: getAuthHeaders(),
-    params: status ? { status, locale: "en" } : { locale: "en" },
+    params: status ? { status, locale } : { locale },
   });
 
   return response.data;
 }
 
-export async function getAdminSubmissionDetail(id: number) {
+export async function getAdminSubmissionDetail(id: number, locale: AppLocale = "en") {
   const response = await http.get<AdminSubmissionDetail>(`/admin/submissions/${id}`, {
     headers: getAuthHeaders(),
-    params: { locale: "en" },
+    params: { locale },
   });
 
   return response.data;
@@ -116,7 +117,11 @@ export async function deleteSubmission(id: number) {
   return response.data;
 }
 
-export async function updateSubmissionTags(id: number, selectedTagSlugs: string[]) {
+export async function updateSubmissionTags(
+  id: number,
+  selectedTagSlugs: string[],
+  locale: AppLocale = "en",
+) {
   const response = await http.patch<{
     message: string;
     submission: AdminSubmissionDetail;
@@ -125,7 +130,7 @@ export async function updateSubmissionTags(id: number, selectedTagSlugs: string[
     { selectedTagSlugs },
     {
       headers: getAuthHeaders(),
-      params: { locale: "en" },
+      params: { locale },
     },
   );
 

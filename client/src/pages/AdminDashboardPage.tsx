@@ -14,7 +14,9 @@ import {
   updateSubmissionTags,
 } from "../api/admin";
 import { getPublicTags } from "../api/tags";
-import { currentTagLocale, getScopeLevelClassName, maxSelectedTagsPerSubmission } from "../lib/tags";
+import { useLanguage } from "../contexts/LanguageContext";
+import { toIntlLocale } from "../lib/i18n";
+import { getScopeLevelClassName, maxSelectedTagsPerSubmission } from "../lib/tags";
 import type { AdminSubmissionDetail, AdminSubmissionStatus, AdminSubmissionSummary } from "../types/admin";
 import type { PublicTag } from "../types/tag";
 
@@ -22,12 +24,12 @@ type SubmissionFilter = "all" | AdminSubmissionStatus;
 
 const filterOptions: SubmissionFilter[] = ["pending", "approved", "rejected", "all"];
 
-function formatDateTime(dateString: string | null): string {
+function formatDateTime(dateString: string | null, locale: string, notReviewedLabel: string): string {
   if (!dateString) {
-    return "Not reviewed yet";
+    return notReviewedLabel;
   }
 
-  return new Date(dateString).toLocaleString("en-US", {
+  return new Date(dateString).toLocaleString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -36,15 +38,16 @@ function formatDateTime(dateString: string | null): string {
   });
 }
 
-function getDashboardErrorMessage(error: unknown): string {
+function getDashboardErrorMessage(error: unknown, fallbackMessage: string): string {
   if (axios.isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? "Request failed. Please try again.";
+    return error.response?.data?.message ?? fallbackMessage;
   }
 
-  return error instanceof Error ? error.message : "Request failed. Please try again.";
+  return error instanceof Error ? error.message : fallbackMessage;
 }
 
 export function AdminDashboardPage() {
+  const { locale, copy } = useLanguage();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<SubmissionFilter>("pending");
   const [availableTags, setAvailableTags] = useState<PublicTag[]>([]);
@@ -59,6 +62,21 @@ export function AdminDashboardPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
+  const getLocalizedSuccessMessage = (message: string) => {
+    switch (message) {
+      case "Submission tags updated successfully.":
+        return copy.admin.successTagsSaved;
+      case "Submission approved successfully.":
+        return copy.admin.successApproved;
+      case "Submission rejected successfully.":
+        return copy.admin.successRejected;
+      case "Submission deleted successfully.":
+        return copy.admin.successDeleted;
+      default:
+        return message;
+    }
+  };
+
   const selectedSummary = useMemo(
     () => submissions.find((submission) => submission.id === selectedSubmissionId) ?? null,
     [selectedSubmissionId, submissions],
@@ -72,15 +90,15 @@ export function AdminDashboardPage() {
   useEffect(() => {
     const loadAvailableTags = async () => {
       try {
-        const tags = await getPublicTags({ locale: currentTagLocale });
+        const tags = await getPublicTags({ locale });
         setAvailableTags(tags);
       } catch (error) {
-        setErrorMessage(getDashboardErrorMessage(error));
+        setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
       }
     };
 
     void loadAvailableTags();
-  }, []);
+  }, [locale]);
 
   const loadSubmissions = async (preferredSubmissionId?: number | null) => {
     if (!getAdminToken()) {
@@ -92,7 +110,7 @@ export function AdminDashboardPage() {
     setErrorMessage("");
 
     try {
-      const result = await getAdminSubmissions(filter === "all" ? undefined : filter);
+      const result = await getAdminSubmissions(filter === "all" ? undefined : filter, locale);
       setSubmissions(result);
 
       const nextSelectedId =
@@ -113,7 +131,7 @@ export function AdminDashboardPage() {
         return;
       }
 
-      setErrorMessage(getDashboardErrorMessage(error));
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
     } finally {
       setIsLoadingList(false);
     }
@@ -122,7 +140,7 @@ export function AdminDashboardPage() {
   useEffect(() => {
     void loadSubmissions(selectedSubmissionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, locale]);
 
   useEffect(() => {
     const loadSubmissionDetail = async () => {
@@ -136,7 +154,7 @@ export function AdminDashboardPage() {
       setIsLoadingDetail(true);
 
       try {
-        const detail = await getAdminSubmissionDetail(selectedSubmissionId);
+        const detail = await getAdminSubmissionDetail(selectedSubmissionId, locale);
         setSelectedSubmission(detail);
         setRejectReason(detail.rejectReason ?? "");
         setSelectedTagSlugs(detail.tags.map((tag) => tag.slug));
@@ -146,7 +164,7 @@ export function AdminDashboardPage() {
           return;
         }
 
-        setErrorMessage(getDashboardErrorMessage(error));
+        setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
       } finally {
         setIsLoadingDetail(false);
       }
@@ -154,7 +172,7 @@ export function AdminDashboardPage() {
 
     void loadSubmissionDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSubmissionId]);
+  }, [locale, selectedSubmissionId]);
 
   const handleLogout = () => {
     clearAdminToken();
@@ -168,7 +186,7 @@ export function AdminDashboardPage() {
       }
 
       if (currentTags.length >= maxSelectedTagsPerSubmission) {
-        setErrorMessage(`Please select up to ${maxSelectedTagsPerSubmission} public tags.`);
+        setErrorMessage(copy.admin.publicTagsLimit(maxSelectedTagsPerSubmission));
         return currentTags;
       }
 
@@ -182,7 +200,7 @@ export function AdminDashboardPage() {
     }
 
     if (selectedTagSlugs.length > maxSelectedTagsPerSubmission) {
-      setErrorMessage(`Please select up to ${maxSelectedTagsPerSubmission} public tags.`);
+      setErrorMessage(copy.admin.publicTagsLimit(maxSelectedTagsPerSubmission));
       return;
     }
 
@@ -191,7 +209,7 @@ export function AdminDashboardPage() {
     setSuccessMessage("");
 
     try {
-      const result = await updateSubmissionTags(selectedSubmission.id, selectedTagSlugs);
+      const result = await updateSubmissionTags(selectedSubmission.id, selectedTagSlugs, locale);
       setSelectedSubmission(result.submission);
       setSelectedTagSlugs(result.submission.tags.map((tag) => tag.slug));
       setSuccessMessage(result.message);
@@ -202,7 +220,7 @@ export function AdminDashboardPage() {
         return;
       }
 
-      setErrorMessage(getDashboardErrorMessage(error));
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
     } finally {
       setIsSubmittingAction(false);
     }
@@ -227,7 +245,7 @@ export function AdminDashboardPage() {
         return;
       }
 
-      setErrorMessage(getDashboardErrorMessage(error));
+      setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
     } finally {
       setIsSubmittingAction(false);
     }
@@ -239,7 +257,7 @@ export function AdminDashboardPage() {
     }
 
     if (!rejectReason.trim()) {
-      setErrorMessage("Please enter a reject reason before rejecting.");
+      setErrorMessage(copy.admin.requiredRejectReason);
       return;
     }
 
@@ -321,12 +339,12 @@ export function AdminDashboardPage() {
       <div className="card">
         <div className="admin-toolbar">
           <div>
-            <p className="section-kicker">Admin Dashboard</p>
-            <h2>Review submissions</h2>
-            <p>Select a record to inspect it and update its review status.</p>
+            <p className="section-kicker">{copy.admin.kicker}</p>
+            <h2>{copy.admin.title}</h2>
+            <p>{copy.admin.intro}</p>
           </div>
           <button className="button-link secondary" type="button" onClick={handleLogout}>
-            Log out
+            {copy.admin.logout}
           </button>
         </div>
 
@@ -338,15 +356,15 @@ export function AdminDashboardPage() {
               className={filter === option ? "admin-filter admin-filter-active" : "admin-filter"}
               onClick={() => setFilter(option)}
             >
-              {option === "all" ? "All" : option[0].toUpperCase() + option.slice(1)}
+              {copy.admin.filters[option]}
             </button>
           ))}
         </div>
 
-        {isLoadingList ? <p>Loading submissions...</p> : null}
+        {isLoadingList ? <p>{copy.admin.loadingSubmissions}</p> : null}
 
         {!isLoadingList && submissions.length === 0 ? (
-          <p>No submissions match the current filter.</p>
+          <p>{copy.admin.noMatchingSubmissions}</p>
         ) : null}
 
         {!isLoadingList && submissions.length > 0 ? (
@@ -369,7 +387,7 @@ export function AdminDashboardPage() {
                 <div className="admin-submission-header">
                   <strong>{submission.title}</strong>
                   <span className={`status-badge status-${submission.status}`}>
-                    {submission.status}
+                    {copy.admin.status[submission.status]}
                   </span>
                 </div>
                 <p>{submission.description}</p>
@@ -386,7 +404,9 @@ export function AdminDashboardPage() {
                   </div>
                 ) : null}
                 <p className="admin-submission-meta">
-                  Created {formatDateTime(submission.createdAt)}
+                  {copy.admin.createdOn(
+                    formatDateTime(submission.createdAt, toIntlLocale(locale), copy.admin.notReviewedYet),
+                  )}
                 </p>
               </button>
             ))}
@@ -396,22 +416,22 @@ export function AdminDashboardPage() {
 
       <div className="card">
         {errorMessage ? <p className="form-message error-message">{errorMessage}</p> : null}
-        {successMessage ? <p className="form-message success-message">{successMessage}</p> : null}
+        {successMessage ? <p className="form-message success-message">{getLocalizedSuccessMessage(successMessage)}</p> : null}
 
         {!selectedSummary && !isLoadingList ? (
           <div>
-            <h2>No submission selected</h2>
-            <p>Choose an item from the list to inspect its details.</p>
+            <h2>{copy.admin.noSubmissionSelectedTitle}</h2>
+            <p>{copy.admin.noSubmissionSelectedBody}</p>
           </div>
         ) : null}
 
         {selectedSummary ? (
           <div className="admin-detail">
-            <p className="section-kicker">Submission Detail</p>
+            <p className="section-kicker">{copy.admin.detailKicker}</p>
             <h2>{selectedSummary.title}</h2>
             <p>{selectedSummary.description}</p>
 
-            {isLoadingDetail ? <p>Loading selected submission...</p> : null}
+            {isLoadingDetail ? <p>{copy.admin.loadingSelectedSubmission}</p> : null}
 
             {selectedSubmission && !isLoadingDetail ? (
               <>
@@ -423,33 +443,32 @@ export function AdminDashboardPage() {
 
                 <div className="admin-detail-meta">
                   <p>
-                    <strong>Status:</strong> {selectedSubmission.status}
+                    <strong>{copy.admin.statusLabel}:</strong> {copy.admin.status[selectedSubmission.status]}
                   </p>
                   <p>
-                    <strong>Contact:</strong> {selectedSubmission.contact}
+                    <strong>{copy.admin.contactLabel}:</strong> {selectedSubmission.contact}
                   </p>
                   <p>
-                    <strong>ZIP file:</strong> {selectedSubmission.modelZipName}
+                    <strong>{copy.admin.zipFileLabel}:</strong> {selectedSubmission.modelZipName}
                   </p>
                   <p>
-                    <strong>Created:</strong> {formatDateTime(selectedSubmission.createdAt)}
+                    <strong>{copy.admin.createdLabel}:</strong>{" "}
+                    {formatDateTime(selectedSubmission.createdAt, toIntlLocale(locale), copy.admin.notReviewedYet)}
                   </p>
                   <p>
-                    <strong>Reviewed:</strong> {formatDateTime(selectedSubmission.reviewedAt)}
+                    <strong>{copy.admin.reviewedLabel}:</strong>{" "}
+                    {formatDateTime(selectedSubmission.reviewedAt, toIntlLocale(locale), copy.admin.notReviewedYet)}
                   </p>
                   {selectedSubmission.rejectReason ? (
                     <p>
-                      <strong>Reject reason:</strong> {selectedSubmission.rejectReason}
+                      <strong>{copy.admin.rejectReasonLabel}:</strong> {selectedSubmission.rejectReason}
                     </p>
                   ) : null}
                 </div>
 
                 <div className="form-field">
-                  <span className="form-label">Public tags</span>
-                  <span className="form-help">
-                    Choose up to {maxSelectedTagsPerSubmission} public tags. These are the only
-                    tags visible to visitors after approval.
-                  </span>
+                  <span className="form-label">{copy.admin.publicTagsLabel}</span>
+                  <span className="form-help">{copy.admin.publicTagsHelp(maxSelectedTagsPerSubmission)}</span>
                   <div className="tag-chip-list">
                     {availableTags.map((tag) => (
                       <button
@@ -481,7 +500,7 @@ export function AdminDashboardPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="form-help">No public tags saved yet.</p>
+                    <p className="form-help">{copy.admin.noPublicTagsSaved}</p>
                   )}
                   <div className="actions">
                     <button
@@ -490,16 +509,14 @@ export function AdminDashboardPage() {
                       onClick={handleSaveTags}
                       disabled={isSubmittingAction}
                     >
-                      Save tags
+                      {copy.admin.saveTags}
                     </button>
                   </div>
                 </div>
 
                 <div className="form-field">
-                  <span className="form-label">Private suggested tags</span>
-                  <span className="form-help">
-                    These suggestions are visible only to the administrator until they are reviewed.
-                  </span>
+                  <span className="form-label">{copy.admin.privateSuggestedTagsLabel}</span>
+                  <span className="form-help">{copy.admin.privateSuggestedTagsHelp}</span>
                   {selectedSubmission.rawTags.length > 0 ? (
                     <div className="selected-tag-list">
                       {selectedSubmission.rawTags.map((rawTag) => (
@@ -509,18 +526,18 @@ export function AdminDashboardPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="form-help">No private tag suggestions were submitted.</p>
+                    <p className="form-help">{copy.admin.noPrivateSuggestedTags}</p>
                   )}
                 </div>
 
                 {selectedSubmission.status === "pending" ? (
                   <label className="form-field">
-                    <span className="form-label">Reject reason</span>
+                    <span className="form-label">{copy.admin.rejectReasonLabel}</span>
                     <textarea
                       className="form-input form-textarea"
                       value={rejectReason}
                       onChange={(event) => setRejectReason(event.target.value)}
-                      placeholder="Explain why this submission should be rejected."
+                      placeholder={copy.admin.rejectReasonPlaceholder}
                       disabled={isSubmittingAction}
                     />
                   </label>
@@ -533,7 +550,7 @@ export function AdminDashboardPage() {
                     onClick={handleDownloadZip}
                     disabled={isSubmittingAction}
                   >
-                    Download ZIP
+                    {copy.admin.downloadZip}
                   </button>
 
                   {selectedSubmission.status === "pending" ? (
@@ -543,7 +560,7 @@ export function AdminDashboardPage() {
                       onClick={handleApprove}
                       disabled={isSubmittingAction}
                     >
-                      Approve
+                      {copy.admin.approve}
                     </button>
                   ) : null}
 
@@ -554,7 +571,7 @@ export function AdminDashboardPage() {
                       onClick={handleReject}
                       disabled={isSubmittingAction}
                     >
-                      Reject
+                      {copy.admin.reject}
                     </button>
                   ) : null}
 
@@ -564,7 +581,7 @@ export function AdminDashboardPage() {
                     onClick={handleDelete}
                     disabled={isSubmittingAction}
                   >
-                    Delete
+                    {copy.admin.delete}
                   </button>
                 </div>
               </>

@@ -2,52 +2,58 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { getAdminDisplayName, getAdminToken } from "../api/admin";
+import { useLanguage } from "../contexts/LanguageContext";
 import { SiteInfoBlock } from "./SiteInfoBlock";
 
 type TopbarSectionId = "home" | "gallery" | "about";
 type HomeSectionId = Extract<TopbarSectionId, "home" | "gallery">;
 
 const topbarSections = [
-  { id: "home", label: "MeshFree", kind: "home-root" },
-  { id: "gallery", label: "Gallery", kind: "home-section", targetId: "gallery", hash: "#gallery" },
-  { id: "about", label: "About", kind: "route", pathname: "/about" },
+  { id: "home", kind: "home-root" },
+  { id: "gallery", kind: "home-section", targetId: "gallery", hash: "#gallery" },
+  { id: "about", kind: "route", pathname: "/about" },
 ] as const;
 
-function getDocumentTitle(pathname: string, activeSection: TopbarSectionId | null): string {
+function getDocumentTitle(
+  pathname: string,
+  activeSection: TopbarSectionId | null,
+  copy: ReturnType<typeof useLanguage>["copy"],
+): string {
   if (pathname === "/about") {
-    return "MeshFree-About";
+    return copy.documentTitle.about;
   }
 
   if (pathname === "/") {
     if (activeSection === "gallery") {
-      return "MeshFree-Gallery";
+      return copy.documentTitle.gallery;
     }
 
-    return "MeshFree-Home";
+    return copy.documentTitle.home;
   }
 
   if (pathname === "/upload" || pathname === "/submit") {
-    return "MeshFree-Upload";
+    return copy.documentTitle.upload;
   }
 
   if (pathname === "/admin/login") {
-    return "MeshFree-Sign in";
+    return copy.documentTitle.signIn;
   }
 
   if (pathname === "/admin/dashboard") {
-    return "MeshFree-Dashboard";
+    return copy.documentTitle.dashboard;
   }
 
   if (pathname.startsWith("/models/")) {
-    return "MeshFree-Model";
+    return copy.documentTitle.model;
   }
 
-  return "MeshFree";
+  return copy.documentTitle.fallback;
 }
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { locale, setLocale, copy } = useLanguage();
   const hasAdminToken = Boolean(getAdminToken());
   const adminDisplayName = getAdminDisplayName();
   const navSearchInputRef = useRef<HTMLInputElement | null>(null);
@@ -59,8 +65,8 @@ export function Layout() {
     location.pathname === "/about" ? "about" : location.pathname === "/" ? homeSection : null;
 
   useEffect(() => {
-    document.title = getDocumentTitle(location.pathname, activeTopbarSection);
-  }, [activeTopbarSection, location.pathname]);
+    document.title = getDocumentTitle(location.pathname, activeTopbarSection, copy);
+  }, [activeTopbarSection, copy, location.pathname]);
 
   useEffect(() => {
     if (location.pathname !== "/" || location.hash !== "#gallery") {
@@ -219,6 +225,10 @@ export function Layout() {
     navigate(section.pathname);
   };
 
+  const handleLocaleToggle = () => {
+    setLocale(locale === "en" ? "zh-CN" : "en");
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -234,7 +244,7 @@ export function Layout() {
           </div>
 
           <div className="topbar-main">
-            <nav className="topbar-nav topbar-link-group" aria-label="Primary navigation">
+            <nav className="topbar-nav topbar-link-group" aria-label={copy.nav.primaryNavigation}>
               {topbarSections
                 .filter((section) => section.id !== "home")
                 .map((section) => (
@@ -244,10 +254,20 @@ export function Layout() {
                     type="button"
                     onClick={() => handleSectionNavigation(section.id)}
                   >
-                    {section.label}
+                    {section.id === "gallery" ? copy.nav.gallery : copy.nav.about}
                   </button>
                 ))}
             </nav>
+
+            <div className="topbar-language-group" role="group" aria-label={copy.nav.languageGroupAriaLabel}>
+              <button
+                className="nav-link"
+                type="button"
+                onClick={handleLocaleToggle}
+              >
+                {copy.nav.languageToggleLabel}
+              </button>
+            </div>
 
             <form className="nav-search-form" onSubmit={handleNavSearchSubmit}>
               <div className="nav-search-field">
@@ -257,10 +277,10 @@ export function Layout() {
                   className="nav-search-input"
                   type="search"
                   defaultValue={new URLSearchParams(location.search).get("q") ?? ""}
-                  placeholder="Search"
-                  aria-label="Search models"
+                  placeholder={copy.nav.searchPlaceholder}
+                  aria-label={copy.nav.searchAriaLabel}
                 />
-                <button className="nav-search-button" type="submit" aria-label="Search models">
+                <button className="nav-search-button" type="submit" aria-label={copy.nav.searchAriaLabel}>
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path
                       fill="currentColor"
@@ -277,14 +297,14 @@ export function Layout() {
                   className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
                   to="/admin/dashboard"
                 >
-                  {adminDisplayName ?? "Dashboard"}
+                  {adminDisplayName ?? copy.nav.dashboardFallback}
                 </NavLink>
               ) : (
                 <NavLink
                   className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
                   to="/admin/login"
                 >
-                  Sign in / Sign up
+                  {copy.nav.adminSignIn}
                 </NavLink>
               )}
 
@@ -294,7 +314,7 @@ export function Layout() {
                 }
                 to="/upload"
               >
-                Upload
+                {copy.nav.upload}
               </NavLink>
             </div>
           </div>

@@ -1,16 +1,24 @@
 import type { TagScopeLevel } from "../types/tag";
 
-export const currentTagLocale = "en";
 export const maxSelectedTagsPerSubmission = 5;
 export const maxSuggestedTagsPerSubmission = 5;
 export const minTagLength = 2;
 export const maxTagLength = 20;
 
+interface SuggestedTagValidationMessages {
+  tagLength: (minLength: number, maxLength: number) => string;
+  maxSuggestedTags: (maxTags: number) => string;
+}
+
 export function normalizeTagText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-export function addSuggestedTagToList(tags: string[], rawTag: string) {
+export function addSuggestedTagToList(
+  tags: string[],
+  rawTag: string,
+  messages: SuggestedTagValidationMessages,
+) {
   const normalizedTag = normalizeTagText(rawTag);
 
   if (!normalizedTag) {
@@ -23,7 +31,7 @@ export function addSuggestedTagToList(tags: string[], rawTag: string) {
   if (normalizedTag.length < minTagLength || normalizedTag.length > maxTagLength) {
     return {
       tags,
-      error: `Each tag must be between ${minTagLength} and ${maxTagLength} characters.`,
+      error: messages.tagLength(minTagLength, maxTagLength),
     };
   }
 
@@ -37,7 +45,7 @@ export function addSuggestedTagToList(tags: string[], rawTag: string) {
   if (tags.length >= maxSuggestedTagsPerSubmission) {
     return {
       tags,
-      error: `Please use up to ${maxSuggestedTagsPerSubmission} suggested tags.`,
+      error: messages.maxSuggestedTags(maxSuggestedTagsPerSubmission),
     };
   }
 
@@ -47,16 +55,16 @@ export function addSuggestedTagToList(tags: string[], rawTag: string) {
   };
 }
 
-export function validateSuggestedTagList(tags: string[]) {
+export function validateSuggestedTagList(tags: string[], messages: SuggestedTagValidationMessages) {
   if (tags.length > maxSuggestedTagsPerSubmission) {
-    return `Please use up to ${maxSuggestedTagsPerSubmission} suggested tags.`;
+    return messages.maxSuggestedTags(maxSuggestedTagsPerSubmission);
   }
 
   for (const tag of tags) {
     const normalizedTag = normalizeTagText(tag);
 
     if (normalizedTag.length < minTagLength || normalizedTag.length > maxTagLength) {
-      return `Each tag must be between ${minTagLength} and ${maxTagLength} characters.`;
+      return messages.tagLength(minTagLength, maxTagLength);
     }
   }
 

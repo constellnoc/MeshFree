@@ -4,9 +4,9 @@ import axios from "axios";
 
 import { createSubmission } from "../api/submissions";
 import { getPublicTags } from "../api/tags";
+import { useLanguage } from "../contexts/LanguageContext";
 import {
   addSuggestedTagToList,
-  currentTagLocale,
   getScopeLevelClassName,
   maxSelectedTagsPerSubmission,
   validateSuggestedTagList,
@@ -32,15 +32,16 @@ function hasAllowedExtension(fileName: string, allowedExtensions: string[]): boo
   return allowedExtensions.some((extension) => lowerCaseName.endsWith(extension));
 }
 
-function getSubmissionErrorMessage(error: unknown): string {
+function getSubmissionErrorMessage(error: unknown, fallbackMessage: string): string {
   if (axios.isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? "Failed to upload. Please try again.";
+    return error.response?.data?.message ?? fallbackMessage;
   }
 
-  return "Failed to upload. Please try again.";
+  return fallbackMessage;
 }
 
 export function UploadPage() {
+  const { locale, copy } = useLanguage();
   const formRef = useRef<HTMLFormElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const modelZipInputRef = useRef<HTMLInputElement | null>(null);
@@ -57,10 +58,18 @@ export function UploadPage() {
   const [successResult, setSuccessResult] = useState<SubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const getLocalizedSubmissionMessage = (message: string) => {
+    if (message === "Submission received successfully. Please wait for admin review.") {
+      return copy.upload.successReceived;
+    }
+
+    return message;
+  };
+
   useEffect(() => {
     const loadTags = async () => {
       try {
-        const tags = await getPublicTags({ locale: currentTagLocale });
+        const tags = await getPublicTags({ locale });
         setAvailableTags(tags);
       } catch (error) {
         console.error("Failed to load preset tags.", error);
@@ -68,7 +77,7 @@ export function UploadPage() {
     };
 
     void loadTags();
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     const storedDraft = localStorage.getItem(submissionDraftStorageKey);
@@ -134,7 +143,7 @@ export function UploadPage() {
       }
 
       if (currentTags.length >= maxSelectedTagsPerSubmission) {
-        setErrorMessage(`Please select up to ${maxSelectedTagsPerSubmission} preset tags.`);
+        setErrorMessage(copy.upload.presetTagsLimit(maxSelectedTagsPerSubmission));
         return currentTags;
       }
 
@@ -143,7 +152,10 @@ export function UploadPage() {
   };
 
   const handleAddTag = (rawTag: string) => {
-    const nextState = addSuggestedTagToList(suggestedTags, rawTag);
+    const nextState = addSuggestedTagToList(suggestedTags, rawTag, {
+      tagLength: copy.upload.tagLength,
+      maxSuggestedTags: copy.upload.suggestedTagsLimit,
+    });
 
     setErrorMessage(nextState.error);
 
@@ -168,34 +180,37 @@ export function UploadPage() {
 
   const validateForm = (): string => {
     if (!title.trim() || !description.trim() || !contact.trim()) {
-      return "Please complete all required text fields.";
+      return copy.upload.requiredFields;
     }
 
     if (!coverFile || !modelZipFile) {
-      return "Please upload both a cover image and a ZIP file.";
+      return copy.upload.requiredFiles;
     }
 
     if (!hasAllowedExtension(coverFile.name, allowedCoverExtensions)) {
-      return "Cover image must be a JPG, JPEG, PNG, or WEBP file.";
+      return copy.upload.coverImageType;
     }
 
     if (coverFile.size > maxCoverSize) {
-      return "Cover image must not exceed 2MB.";
+      return copy.upload.coverImageMaxSize;
     }
 
     if (!modelZipFile.name.toLowerCase().endsWith(".zip")) {
-      return "Model file must be a ZIP archive.";
+      return copy.upload.zipType;
     }
 
     if (modelZipFile.size > maxModelZipSize) {
-      return "Model ZIP must not exceed 20MB.";
+      return copy.upload.zipMaxSize(maxModelZipSize / (1024 * 1024));
     }
 
     if (selectedTagSlugs.length > maxSelectedTagsPerSubmission) {
-      return `Please select up to ${maxSelectedTagsPerSubmission} preset tags.`;
+      return copy.upload.presetTagsLimit(maxSelectedTagsPerSubmission);
     }
 
-    const tagValidationMessage = validateSuggestedTagList(suggestedTags);
+    const tagValidationMessage = validateSuggestedTagList(suggestedTags, {
+      tagLength: copy.upload.tagLength,
+      maxSuggestedTags: copy.upload.suggestedTagsLimit,
+    });
 
     if (tagValidationMessage) {
       return tagValidationMessage;
@@ -246,7 +261,7 @@ export function UploadPage() {
       localStorage.removeItem(submissionDraftStorageKey);
       formRef.current?.reset();
     } catch (error) {
-      setErrorMessage(getSubmissionErrorMessage(error));
+      setErrorMessage(getSubmissionErrorMessage(error, copy.upload.failedUpload));
     } finally {
       setIsSubmitting(false);
     }
@@ -278,55 +293,49 @@ export function UploadPage() {
   return (
     <section className="page-grid upload-grid">
       <div className="card">
-        <p className="section-kicker">Public Upload</p>
-        <h2>Upload a model for admin review</h2>
-        <p>
-          Upload one cover image and one ZIP file. After upload, the resource
-          will stay in <strong>pending</strong> status until the administrator reviews it.
-        </p>
+        <p className="section-kicker">{copy.upload.kicker}</p>
+        <h2>{copy.upload.title}</h2>
+        <p>{copy.upload.intro}</p>
 
         <form ref={formRef} className="submission-form" onSubmit={handleSubmit}>
           <label className="form-field">
-            <span className="form-label">Title</span>
+            <span className="form-label">{copy.upload.titleLabel}</span>
             <input
               className="form-input"
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Temple Asset Pack"
+              placeholder={copy.upload.titlePlaceholder}
               disabled={isSubmitting}
             />
           </label>
 
           <label className="form-field">
-            <span className="form-label">Description</span>
+            <span className="form-label">{copy.upload.descriptionLabel}</span>
             <textarea
               className="form-input form-textarea"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Describe the model pack and its intended use."
+              placeholder={copy.upload.descriptionPlaceholder}
               disabled={isSubmitting}
             />
           </label>
 
           <label className="form-field">
-            <span className="form-label">Contact info (QQ / WeChat / Email)</span>
+            <span className="form-label">{copy.upload.contactLabel}</span>
             <input
               className="form-input"
               type="text"
               value={contact}
               onChange={(event) => setContact(event.target.value)}
-              placeholder="Email: your-name@example.com"
+              placeholder={copy.upload.contactPlaceholder}
               disabled={isSubmitting}
             />
           </label>
 
           <div className="form-field">
-            <span className="form-label">Preset tags</span>
-            <span className="form-help">
-              Select up to {maxSelectedTagsPerSubmission} public tags. These are the tags that can
-              become visible after review.
-            </span>
+            <span className="form-label">{copy.upload.presetTagsLabel}</span>
+            <span className="form-help">{copy.upload.presetTagsHelp(maxSelectedTagsPerSubmission)}</span>
             <div className="tag-chip-list">
               {availableTags.map((tag) => (
                 <button
@@ -349,7 +358,7 @@ export function UploadPage() {
           </div>
 
           <div className="form-field">
-            <span className="form-label">Suggested tags</span>
+            <span className="form-label">{copy.upload.suggestedTagsLabel}</span>
             <div className="tag-input-row">
               <input
                 className="form-input"
@@ -357,7 +366,7 @@ export function UploadPage() {
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}
                 onKeyDown={handleTagInputKeyDown}
-                placeholder="Suggest a new tag for admin review"
+                placeholder={copy.upload.suggestedTagPlaceholder}
                 disabled={isSubmitting}
               />
               <button
@@ -366,13 +375,10 @@ export function UploadPage() {
                 onClick={() => handleAddTag(tagInput)}
                 disabled={isSubmitting || !tagInput.trim()}
               >
-                Add suggestion
+                {copy.upload.addSuggestion}
               </button>
             </div>
-            <span className="form-help">
-              Suggested tags stay private. Only the administrator can decide whether they become a
-              new public tag or an alias for an existing tag.
-            </span>
+            <span className="form-help">{copy.upload.suggestedTagsHelp}</span>
             {suggestedTags.length > 0 ? (
               <div className="selected-tag-list" aria-live="polite">
                 {suggestedTags.map((tag) => (
@@ -392,7 +398,7 @@ export function UploadPage() {
           </div>
 
           <label className="form-field">
-            <span className="form-label">Cover image</span>
+            <span className="form-label">{copy.upload.coverImageLabel}</span>
             <input
               ref={coverInputRef}
               className="form-input"
@@ -401,11 +407,11 @@ export function UploadPage() {
               onChange={handleCoverChange}
               disabled={isSubmitting}
             />
-            <span className="form-help">Accepted: JPG, JPEG, PNG, WEBP. Max 2MB.</span>
+            <span className="form-help">{copy.upload.coverImageHelp}</span>
           </label>
 
           <label className="form-field">
-            <span className="form-label">Model ZIP</span>
+            <span className="form-label">{copy.upload.modelZipLabel}</span>
             <input
               ref={modelZipInputRef}
               className="form-input"
@@ -414,7 +420,7 @@ export function UploadPage() {
               onChange={handleModelZipChange}
               disabled={isSubmitting}
             />
-            <span className="form-help">Accepted: ZIP only. Max 20MB.</span>
+            <span className="form-help">{copy.upload.modelZipHelp(maxModelZipSize / (1024 * 1024))}</span>
           </label>
 
           <div className="form-actions">
@@ -424,35 +430,32 @@ export function UploadPage() {
               onClick={handleResetDraft}
               disabled={isSubmitting}
             >
-              Reset
+              {copy.upload.reset}
             </button>
             <button className="button-link form-upload-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Uploading..." : "Upload for review"}
+              {isSubmitting ? copy.upload.uploading : copy.upload.uploadForReview}
             </button>
           </div>
 
-          <p className="form-help">
-            Text fields, selected preset tags, and suggested tags are saved locally in this browser.
-            File inputs must be selected again after refresh or reset.
-          </p>
+          <p className="form-help">{copy.upload.draftHelp}</p>
         </form>
       </div>
 
       <div className="card">
-        <h2>Upload rules</h2>
+        <h2>{copy.upload.rulesTitle}</h2>
         <ul className="plain-list">
-          <li>All fields are required.</li>
-          <li>Only one cover image and one ZIP file are allowed.</li>
-          <li>The model will become public only after admin approval.</li>
+          <li>{copy.upload.rulesAllFields}</li>
+          <li>{copy.upload.rulesSingleFiles}</li>
+          <li>{copy.upload.rulesPublicAfterReview}</li>
         </ul>
 
         {errorMessage ? <p className="form-message error-message">{errorMessage}</p> : null}
 
         {successResult ? (
           <div className="form-message success-message">
-            <p>{successResult.message}</p>
-            <p>Upload ID: {successResult.submissionId}</p>
-            <p>Status: {successResult.status}</p>
+            <p>{getLocalizedSubmissionMessage(successResult.message)}</p>
+            <p>{copy.upload.uploadId}: {successResult.submissionId}</p>
+            <p>{copy.upload.status}: {copy.upload.statusValues[successResult.status]}</p>
           </div>
         ) : null}
       </div>

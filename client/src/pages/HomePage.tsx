@@ -1,14 +1,16 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
 import { getApprovedModels } from "../api/models";
 import { getPublicTags } from "../api/tags";
-import { currentTagLocale, getScopeLevelClassName } from "../lib/tags";
+import { useLanguage } from "../contexts/LanguageContext";
+import { toIntlLocale } from "../lib/i18n";
+import { getScopeLevelClassName } from "../lib/tags";
 import type { ModelSummary } from "../types/model";
 import type { PublicTag } from "../types/tag";
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
+function formatDate(dateString: string, locale: string): string {
+  return new Date(dateString).toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -16,6 +18,7 @@ function formatDate(dateString: string): string {
 }
 
 export function HomePage() {
+  const { locale, copy } = useLanguage();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [models, setModels] = useState<ModelSummary[]>([]);
@@ -26,6 +29,10 @@ export function HomePage() {
 
   const activeQuery = searchParams.get("q")?.trim() ?? "";
   const activeTag = searchParams.get("tag")?.trim() ?? "";
+  const activeTagLabel = useMemo(
+    () => availableTags.find((tag) => tag.slug === activeTag)?.label ?? activeTag,
+    [activeTag, availableTags],
+  );
 
   useEffect(() => {
     const loadModels = async () => {
@@ -35,24 +42,24 @@ export function HomePage() {
         const data = await getApprovedModels({
           ...(activeQuery ? { q: activeQuery } : {}),
           ...(activeTag ? { tag: activeTag } : {}),
-          locale: currentTagLocale,
+          locale,
         });
         setModels(data);
         setErrorMessage("");
       } catch (error) {
-        setErrorMessage(`Failed to load approved models: ${String(error)}`);
+        setErrorMessage(copy.home.failedLoad(String(error)));
       } finally {
         setIsLoading(false);
       }
     };
 
     void loadModels();
-  }, [activeQuery, activeTag]);
+  }, [activeQuery, activeTag, locale]);
 
   useEffect(() => {
     const loadTags = async () => {
       try {
-        const tags = await getPublicTags({ locale: currentTagLocale });
+        const tags = await getPublicTags({ locale });
         setAvailableTags(tags);
       } catch (error) {
         console.error("Failed to load public tags.", error);
@@ -60,7 +67,7 @@ export function HomePage() {
     };
 
     void loadTags();
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     let animationFrameId = 0;
@@ -145,17 +152,14 @@ export function HomePage() {
         </div>
 
         <div className="hero-copy">
-          <h1>Open resources, open creativity.</h1>
-          <p className="hero-lead">
-            MeshFree is a lightweight platform for browsing, sharing, and
-            reviewing 3D model resources.
-          </p>
+          <h1>{copy.home.heroTitle}</h1>
+          <p className="hero-lead">{copy.home.heroLead}</p>
           <div className="actions hero-actions">
             <Link className="button-link" to="/#gallery">
-              Browse gallery
+              {copy.home.browseGallery}
             </Link>
             <Link className="button-link secondary" to="/upload">
-              Upload
+              {copy.home.upload}
             </Link>
           </div>
         </div>
@@ -163,15 +167,13 @@ export function HomePage() {
 
       <div id="gallery" className="gallery-anchor gallery-anchor-enhanced">
         <div className="gallery-anchor-copy">
-          <p className="section-kicker">Gallery</p>
-          <h2>Approved model resources</h2>
-          <p>
-            Browse recommended tags and open approved resources without logging in.
-          </p>
+          <p className="section-kicker">{copy.home.galleryKicker}</p>
+          <h2>{copy.home.galleryTitle}</h2>
+          <p>{copy.home.galleryLead}</p>
         </div>
         <div className="actions">
           <Link className="button-link secondary" to="/upload">
-            Upload a model
+            {copy.home.uploadModel}
           </Link>
         </div>
       </div>
@@ -198,13 +200,9 @@ export function HomePage() {
 
         {activeQuery || activeTag ? (
           <div className="gallery-toolbar-meta">
-            <p className="search-result-summary">
-              Showing results
-              {activeQuery ? ` for "${activeQuery}"` : ""}
-              {activeTag ? ` in tag "${activeTag}"` : ""}.
-            </p>
+            <p className="search-result-summary">{copy.home.showingResults(activeQuery, activeTag, activeTagLabel)}</p>
             <button className="button-link secondary" type="button" onClick={handleClearFilters}>
-              Clear filters
+              {copy.home.clearFilters}
             </button>
           </div>
         ) : null}
@@ -212,25 +210,25 @@ export function HomePage() {
 
       {isLoading ? (
         <div className="card">
-          <h2>Loading models</h2>
-          <p>The client is requesting `/api/models` from the backend.</p>
+          <h2>{copy.home.loadingTitle}</h2>
+          <p>{copy.home.loadingBody}</p>
         </div>
       ) : null}
 
       {!isLoading && errorMessage ? (
         <div className="card">
-          <h2>Unable to load models</h2>
+          <h2>{copy.home.errorTitle}</h2>
           <p>{errorMessage}</p>
         </div>
       ) : null}
 
       {!isLoading && !errorMessage && models.length === 0 ? (
         <div className="card">
-          <h2>{activeQuery || activeTag ? "No matching models" : "No approved models yet"}</h2>
+          <h2>{activeQuery || activeTag ? copy.home.noMatchingTitle : copy.home.noApprovedTitle}</h2>
           <p>
             {activeQuery || activeTag
-              ? "Try a different keyword or remove the active tag filter."
-              : "The public gallery is empty right now. Once approved submissions exist, they will appear here automatically."}
+              ? copy.home.noMatchingBody
+              : copy.home.noApprovedBody}
           </p>
         </div>
       ) : null}
@@ -250,7 +248,7 @@ export function HomePage() {
                 className="model-cover"
               />
               <div className="model-meta">
-                <p className="model-date">Approved resource</p>
+                <p className="model-date">{copy.home.approvedResource}</p>
                 <h2>{model.title}</h2>
                 <p>{model.description}</p>
                 {model.tags.length > 0 ? (
@@ -276,8 +274,10 @@ export function HomePage() {
                     ))}
                   </div>
                 ) : null}
-                <span className="model-link">View details and download</span>
-                <p className="model-date">Created {formatDate(model.createdAt)}</p>
+                <span className="model-link">{copy.home.viewDetailsAndDownload}</span>
+                <p className="model-date">
+                  {copy.home.createdOn(formatDate(model.createdAt, toIntlLocale(locale)))}
+                </p>
               </div>
             </Link>
           ))}
