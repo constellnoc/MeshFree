@@ -4,15 +4,8 @@
 
 高优先级：
 
-- `docs/session-notes/20260426_2_weekly-summary-0420-0426.md`
+- `docs/multi-format-preview-workflow.zh-CN.md`
 - `docs/releases/v0.3.0-beta.2.zh-CN.md`
-- `docs/releases/v0.3.0-beta.2.en.md`
-- `docs/session-notes/20260420_2_navigation-about-and-beta-prep.md`
-- `docs/session-notes/20260420_1_tag-governance-and-localization-upgrade.md`
-- `docs/session-notes/20260419_1_glb-preview-and-viewer-iteration.md`
-- `docs/session-notes/20260418_3_homepage-modal-and-motion-progress.md`
-- `docs/session-notes/20260418_2_home-hero-geometry-execution-handoff.md`
-- `docs/session-notes/20260418_1_navigation-structure-and-ui-adjustments.md`
 - `docs/deployment-guide.zh-CN.md`
 - `docs/deployment-checklist.zh-CN.md`
 - `docs/mvp-spec.zh-CN.md`
@@ -23,6 +16,15 @@
 - `docs/product-backlog.zh-CN.md`
 - `docs/README.md`
 
+低优先级：
+
+- 默认不要主动阅读旧 `session-notes`
+- 只有在以下情况才回头查：
+  - 用户明确要求引用旧记录
+  - 当前任务需要追溯某个历史决策
+  - 当前代码行为和现有主文档冲突，需要核对旧上下文
+- 即使需要查，也只查最相关的一两份，不要串读整段历史
+
 ## 2. 说话规则
 
 - 和我解释一律中文。
@@ -32,7 +34,7 @@
 - 开始编码前，先说本轮要做什么、为什么这样做。
 - 准备改文件前，先说会改什么。
 - 准备跑长命令前，先说目的。
-- 如果上下文变长或进入新阶段，主动建议写新的 `session-notes`。
+- 如果上下文变长或进入新阶段，优先建议写新的正式工作文档；`session-notes` 不是默认首选。
 
 ## 3. 行为规则
 
@@ -75,10 +77,15 @@
 
 当前重点：
 
+- 按正式工作文档分步推进，不一口气做完大任务
 - 继续验证真实环境
 - 做小修复
 - 做结构整理
 - 不做大范围失控扩展
+- 当前新增主线是：
+  - 多源格式上传 / 下载
+  - 服务端转 `glb` 预览
+  - 管理员控制公开状态与预览开关
 
 ## 6. 当前标签系统结论
 
@@ -120,6 +127,8 @@
 - 管理员审核
 - 已有标签搜索 / 标签筛选 / 标签治理结构
 - 第一版 3D 预览
+- 多源格式转 `glb` 预览工作流
+- 管理员控制模型公开 / 预览状态
 
 默认不优先：
 
@@ -167,3 +176,7 @@
 1. 当前项目阶段
 2. 已完成到哪里
 3. 本轮准备做什么
+
+补充：
+
+- 如果已有正式工作文档，优先按工作文档推进，不要默认回头翻大量旧 `session-notes`。

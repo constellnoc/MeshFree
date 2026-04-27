@@ -6,6 +6,7 @@
 - English MVP spec: `mvp-spec.en.md`
 - Chinese API design: `api-design.zh-CN.md`
 - English API design: `api-design.en.md`
+- Chinese multi-format preview workflow: `multi-format-preview-workflow.zh-CN.md`
 
 ## Release Docs
 
@@ -52,10 +53,11 @@ If you want to understand the project quickly, read in this order:
 
 1. `mvp-spec.zh-CN.md` or `mvp-spec.en.md`
 2. `api-design.zh-CN.md` or `api-design.en.md`
-3. `deployment-guide.zh-CN.md` if you are preparing deployment
-4. `deployment-checklist.zh-CN.md` when you are ready to execute deployment step by step
-5. `server-maintenance.zh-CN.md` when you want day-to-day server operations guidance
-6. `session-notes/` for project history and decision context
+3. `multi-format-preview-workflow.zh-CN.md` when the task involves multi-format upload, conversion, preview, or admin preview control
+4. `deployment-guide.zh-CN.md` if you are preparing deployment
+5. `deployment-checklist.zh-CN.md` when you are ready to execute deployment step by step
+6. `server-maintenance.zh-CN.md` when you want day-to-day server operations guidance
+7. `session-notes/` only when you need old project history or decision context
 
 ## Notes
 
