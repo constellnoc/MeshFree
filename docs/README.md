@@ -11,6 +11,8 @@
 
 - Chinese v0.1.0 release notes: `releases/v0.1.0.zh-CN.md`
 - English v0.1.0 release notes: `releases/v0.1.0.en.md`
+- Chinese v0.3.0-beta.2 release notes: `releases/v0.3.0-beta.2.zh-CN.md`
+- English v0.3.0-beta.2 release notes: `releases/v0.3.0-beta.2.en.md`
 - Repository changelog: `../CHANGELOG.md`
 
 ## Deployment Docs
@@ -36,6 +38,13 @@ Current notes:
 - `session-notes/20260416_2_deployment-successfully-completed.md`
 - `session-notes/20260418_1_navigation-structure-and-ui-adjustments.md`
 - `session-notes/20260418_2_home-hero-geometry-execution-handoff.md`
+- `session-notes/20260418_3_homepage-modal-and-motion-progress.md`
+- `session-notes/20260419_1_glb-preview-and-viewer-iteration.md`
+- `session-notes/20260420_1_tag-governance-and-localization-upgrade.md`
+- `session-notes/20260420_2_navigation-about-and-beta-prep.md`
+- `session-notes/20260426_english-copy-for-retranslation.md`
+- `session-notes/20260426_2_weekly-summary-0420-0426.md`
+- `session-notes/prompt.md`
 
 ## Recommended Reading Order
 

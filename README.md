@@ -2,7 +2,7 @@
 
 `MeshFree` is a lightweight model upload and download website built for MVP demonstration.
 
-Current formal release milestone: `v0.3.0-beta.1`
+Current formal release milestone: `v0.3.0-beta.2`
 
 The current repository already includes the three core MVP loops:
 
@@ -11,6 +11,8 @@ The current repository already includes the three core MVP loops:
 - Public submission with file upload
 - Admin login and submission review
 - Governed preset tags with public search/filter
+- Multi-select public tag filtering
+- Admin-side raw custom tag governance flow
 - First GLB preview flow
 - Independent `About` page in navigation
 
@@ -26,8 +28,10 @@ Current status:
 - Public submission flow connected to real upload and database logic
 - Admin login and review flow connected to real database and JWT auth
 - Public tag governance structure connected to real data
+- Admin-side raw custom tag handling connected to real review workflow
 - First `GLB` preview flow connected to uploaded model packages
 - Top navigation and independent `About` page adjusted for current beta
+- Current Chinese terminology and typography have been unified for the main user/admin surfaces
 - Chinese and English MVP / API documents completed
 - Chinese and English deployment guides completed
 - Real server deployment completed
@@ -35,9 +39,11 @@ Current status:
 
 ## Release
 
-- Release branch: `release/v0.3.0-beta.1`
-- Release tag: `v0.3.0-beta.1`
-- Current beta release notes: prepared separately when publishing
+- Release branch: `release/v0.3.0-beta.2`
+- Release tag: `v0.3.0-beta.2`
+- Current beta release notes:
+  - `docs/releases/v0.3.0-beta.2.en.md`
+  - `docs/releases/v0.3.0-beta.2.zh-CN.md`
 - Change log: `CHANGELOG.md`
 
 ## Tech Stack
@@ -57,9 +63,14 @@ Current status:
 - Public submission form with cover image and ZIP upload
 - First GLB preview extracted from uploaded ZIP package
 - Preset public tags with search and filtering
+- Multi-select tag filtering on the public gallery
 - Independent `About` page
 - Single-admin login
 - Admin submission review, reject, approve, and delete
+- Admin raw custom tag handling:
+  - ignore
+  - resolve to an existing public tag
+  - create a new public tag
 
 ## Project Structure
 
@@ -75,7 +86,8 @@ Core documents:
 - English MVP spec: `docs/mvp-spec.en.md`
 - Chinese API design: `docs/api-design.zh-CN.md`
 - English API design: `docs/api-design.en.md`
-- Current beta release notes: prepared separately when publishing
+- English beta release notes: `docs/releases/v0.3.0-beta.2.en.md`
+- Chinese beta release notes: `docs/releases/v0.3.0-beta.2.zh-CN.md`
 - Change log: `CHANGELOG.md`
 
 Deployment guides:

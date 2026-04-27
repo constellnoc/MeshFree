@@ -320,7 +320,7 @@ Admin only
 
 ```json
 {
-  "id": "sub_003",
+  "id": 3,
   "title": "Temple Asset Pack",
   "description": "Low-poly temple model set for practice.",
   "contact": "QQ:123456",
@@ -329,11 +329,193 @@ Admin only
   "status": "pending",
   "rejectReason": null,
   "createdAt": "2026-04-10T12:00:00.000Z",
-  "reviewedAt": null
+  "reviewedAt": null,
+  "tags": [
+    {
+      "slug": "environment",
+      "label": "Environment",
+      "scopeLevel": "broad"
+    }
+  ],
+  "rawTags": [
+    {
+      "id": 18,
+      "value": "ruins",
+      "status": "pending",
+      "resolvedTag": null
+    }
+  ]
 }
 ```
 
-### 4.4 Approve Submission
+### 4.4 Download Submission ZIP
+
+**Method**
+
+`GET /api/admin/submissions/:id/download`
+
+**Purpose**
+
+Download the original uploaded ZIP package for admin review.
+
+**Access**
+
+Admin only
+
+**Path Params**
+
+- `id`: submission ID
+
+### 4.5 Update Submission Tags
+
+**Method**
+
+`PATCH /api/admin/submissions/:id/tags`
+
+**Purpose**
+
+Save the governed public tags for one submission.
+
+**Access**
+
+Admin only
+
+**Path Params**
+
+- `id`: submission ID
+
+**Request Body Example**
+
+```json
+{
+  "selectedTagSlugs": ["environment", "low-poly"]
+}
+```
+
+**Success Response Example**
+
+```json
+{
+  "message": "Submission tags updated successfully.",
+  "submission": {
+    "id": 3,
+    "status": "pending",
+    "tags": [
+      {
+        "slug": "environment",
+        "label": "Environment",
+        "scopeLevel": "broad"
+      },
+      {
+        "slug": "low-poly",
+        "label": "Low Poly",
+        "scopeLevel": "specific"
+      }
+    ]
+  }
+}
+```
+
+### 4.6 Create Public Tag
+
+**Method**
+
+`POST /api/admin/tags`
+
+**Purpose**
+
+Create a new governed public tag directly from the admin panel.
+
+**Access**
+
+Admin only
+
+**Request Body Example**
+
+```json
+{
+  "slug": "sci-fi-weapon-pack",
+  "displayNameEn": "Sci-Fi Weapon Pack",
+  "displayNameZh": "科幻武器包",
+  "scopeLevel": "medium"
+}
+```
+
+**Success Response Example**
+
+```json
+{
+  "message": "Admin tag created successfully.",
+  "tag": {
+    "slug": "sci-fi-weapon-pack",
+    "label": "Sci-Fi Weapon Pack",
+    "scopeLevel": "medium"
+  }
+}
+```
+
+### 4.7 Ignore Raw Custom Tag
+
+**Method**
+
+`PATCH /api/admin/raw-tags/:id/ignore`
+
+**Purpose**
+
+Mark a private raw custom tag as ignored.
+
+**Access**
+
+Admin only
+
+### 4.8 Resolve Raw Custom Tag to Existing Public Tag
+
+**Method**
+
+`PATCH /api/admin/raw-tags/:id/resolve-existing`
+
+**Purpose**
+
+Bind a private raw custom tag to an existing governed public tag.
+
+**Access**
+
+Admin only
+
+**Request Body Example**
+
+```json
+{
+  "tagSlug": "environment"
+}
+```
+
+### 4.9 Create Public Tag from Raw Custom Tag
+
+**Method**
+
+`POST /api/admin/raw-tags/:id/create-tag`
+
+**Purpose**
+
+Create a new governed public tag from a private raw custom tag and resolve it immediately.
+
+**Access**
+
+Admin only
+
+**Request Body Example**
+
+```json
+{
+  "slug": "ruins",
+  "displayNameEn": "Ruins",
+  "displayNameZh": "遗迹",
+  "scopeLevel": "medium"
+}
+```
+
+### 4.10 Approve Submission
 
 **Method**
 
@@ -367,7 +549,7 @@ The backend should:
 - Clear the reject reason
 - Set the review time
 
-### 4.5 Reject Submission
+### 4.11 Reject Submission
 
 **Method**
 
@@ -409,7 +591,7 @@ The backend should:
 - Save `rejectReason`
 - Set the review time
 
-### 4.6 Delete Submission
+### 4.12 Delete Submission
 
 **Method**
 
@@ -461,6 +643,12 @@ The project follows these route naming rules:
 - `POST /api/submissions`
 - `POST /api/admin/login`
 - `GET /api/admin/submissions`
+- `GET /api/admin/submissions/:id/download`
+- `PATCH /api/admin/submissions/:id/tags`
+- `POST /api/admin/tags`
+- `PATCH /api/admin/raw-tags/:id/ignore`
+- `PATCH /api/admin/raw-tags/:id/resolve-existing`
+- `POST /api/admin/raw-tags/:id/create-tag`
 - `PATCH /api/admin/submissions/:id/approve`
 - `PATCH /api/admin/submissions/:id/reject`
 - `DELETE /api/admin/submissions/:id`

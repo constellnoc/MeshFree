@@ -4,6 +4,9 @@
 
 高优先级：
 
+- `docs/session-notes/20260426_2_weekly-summary-0420-0426.md`
+- `docs/releases/v0.3.0-beta.2.zh-CN.md`
+- `docs/releases/v0.3.0-beta.2.en.md`
 - `docs/session-notes/20260420_2_navigation-about-and-beta-prep.md`
 - `docs/session-notes/20260420_1_tag-governance-and-localization-upgrade.md`
 - `docs/session-notes/20260419_1_glb-preview-and-viewer-iteration.md`
@@ -63,6 +66,12 @@
 - 独立 `About` 页面第一版
 - 顶部导航高亮第一版重构
 - 模型 ZIP 上传上限已调到 `50MB`
+- 首页标签筛选支持多选
+- 中文术语与中文显示已做一轮统一优化
+- 管理员现在可以直接处理私有自定义标签：
+  - 绑定到已有公开标签
+  - 创建新的公开标签
+  - 忽略
 
 当前重点：
 
@@ -78,10 +87,12 @@
 - 模型只绑定规范标签
 - 用户自定义输入不是公开标签
 - 用户可提交私有建议标签
-- 管理员决定：
+- 管理员现在已能：
   - 绑定已有规范标签
-  - 后续建新标签
-  - 后续建别名
+  - 新建公开标签
+  - 忽略私有自定义标签
+- 后续仍计划补：
+  - 转别名的完整治理链路
 - 标签已开始支持：
   - `Tag`
   - `TagTranslation`
@@ -96,7 +107,7 @@
 
 当前还没完全做完：
 
-- 管理员把私有建议标签转成“新标签 / 别名”的完整 UI
+- 管理员把私有自定义标签转成“别名”的完整 UI
 - 正式中英文切换 UI
 
 ## 7. 范围边界

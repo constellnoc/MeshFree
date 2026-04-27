@@ -320,7 +320,7 @@
 
 ```json
 {
-  "id": "sub_003",
+  "id": 3,
   "title": "Temple Asset Pack",
   "description": "Low-poly temple model set for practice.",
   "contact": "QQ:123456",
@@ -329,11 +329,193 @@
   "status": "pending",
   "rejectReason": null,
   "createdAt": "2026-04-10T12:00:00.000Z",
-  "reviewedAt": null
+  "reviewedAt": null,
+  "tags": [
+    {
+      "slug": "environment",
+      "label": "Environment",
+      "scopeLevel": "broad"
+    }
+  ],
+  "rawTags": [
+    {
+      "id": 18,
+      "value": "ruins",
+      "status": "pending",
+      "resolvedTag": null
+    }
+  ]
 }
 ```
 
-### 4.4 通过投稿
+### 4.4 下载投稿 ZIP
+
+**方法**
+
+`GET /api/admin/submissions/:id/download`
+
+**用途**
+
+供管理员下载原始上传 ZIP 文件，用于审核检查。
+
+**访问权限**
+
+仅管理员可访问
+
+**路径参数**
+
+- `id`：投稿 ID
+
+### 4.5 保存投稿公开标签
+
+**方法**
+
+`PATCH /api/admin/submissions/:id/tags`
+
+**用途**
+
+保存一条投稿当前绑定的公开规范标签。
+
+**访问权限**
+
+仅管理员可访问
+
+**路径参数**
+
+- `id`：投稿 ID
+
+**请求体示例**
+
+```json
+{
+  "selectedTagSlugs": ["environment", "low-poly"]
+}
+```
+
+**成功响应示例**
+
+```json
+{
+  "message": "Submission tags updated successfully.",
+  "submission": {
+    "id": 3,
+    "status": "pending",
+    "tags": [
+      {
+        "slug": "environment",
+        "label": "Environment",
+        "scopeLevel": "broad"
+      },
+      {
+        "slug": "low-poly",
+        "label": "Low Poly",
+        "scopeLevel": "specific"
+      }
+    ]
+  }
+}
+```
+
+### 4.6 新建公开标签
+
+**方法**
+
+`POST /api/admin/tags`
+
+**用途**
+
+允许管理员直接在后台创建新的公开规范标签。
+
+**访问权限**
+
+仅管理员可访问
+
+**请求体示例**
+
+```json
+{
+  "slug": "sci-fi-weapon-pack",
+  "displayNameEn": "Sci-Fi Weapon Pack",
+  "displayNameZh": "科幻武器包",
+  "scopeLevel": "medium"
+}
+```
+
+**成功响应示例**
+
+```json
+{
+  "message": "Admin tag created successfully.",
+  "tag": {
+    "slug": "sci-fi-weapon-pack",
+    "label": "Sci-Fi Weapon Pack",
+    "scopeLevel": "medium"
+  }
+}
+```
+
+### 4.7 忽略私有自定义标签
+
+**方法**
+
+`PATCH /api/admin/raw-tags/:id/ignore`
+
+**用途**
+
+将一条私有自定义标签标记为忽略。
+
+**访问权限**
+
+仅管理员可访问
+
+### 4.8 将私有自定义标签绑定到已有公开标签
+
+**方法**
+
+`PATCH /api/admin/raw-tags/:id/resolve-existing`
+
+**用途**
+
+将一条私有自定义标签归入已有的公开规范标签。
+
+**访问权限**
+
+仅管理员可访问
+
+**请求体示例**
+
+```json
+{
+  "tagSlug": "environment"
+}
+```
+
+### 4.9 从私有自定义标签创建公开标签
+
+**方法**
+
+`POST /api/admin/raw-tags/:id/create-tag`
+
+**用途**
+
+从一条私有自定义标签直接创建新的公开规范标签，并立即完成归入。
+
+**访问权限**
+
+仅管理员可访问
+
+**请求体示例**
+
+```json
+{
+  "slug": "ruins",
+  "displayNameEn": "Ruins",
+  "displayNameZh": "遗迹",
+  "scopeLevel": "medium"
+}
+```
+
+### 4.10 通过投稿
 
 **方法**
 
@@ -367,7 +549,7 @@
 - 清空拒绝原因
 - 写入审核时间
 
-### 4.5 拒绝投稿
+### 4.11 拒绝投稿
 
 **方法**
 
@@ -409,7 +591,7 @@
 - 保存 `rejectReason`
 - 写入审核时间
 
-### 4.6 删除投稿
+### 4.12 删除投稿
 
 **方法**
 
@@ -461,6 +643,12 @@
 - `POST /api/submissions`
 - `POST /api/admin/login`
 - `GET /api/admin/submissions`
+- `GET /api/admin/submissions/:id/download`
+- `PATCH /api/admin/submissions/:id/tags`
+- `POST /api/admin/tags`
+- `PATCH /api/admin/raw-tags/:id/ignore`
+- `PATCH /api/admin/raw-tags/:id/resolve-existing`
+- `POST /api/admin/raw-tags/:id/create-tag`
 - `PATCH /api/admin/submissions/:id/approve`
 - `PATCH /api/admin/submissions/:id/reject`
 - `DELETE /api/admin/submissions/:id`

@@ -2,6 +2,47 @@
 
 All notable project milestones for `MeshFree` are documented in this file.
 
+## v0.3.0-beta.2 - 2026-04-27
+
+This beta focuses on completing admin-side tag governance, improving tag selection behavior, and aligning documentation with the current review workflow.
+
+### Added
+
+- Admin APIs for raw custom tag handling:
+  - ignore a private custom tag
+  - resolve a private custom tag to an existing public tag
+  - create a new public tag from a private custom tag
+  - create a new public tag directly from the admin panel
+- Admin dashboard UI for handling private custom tags in place
+- Inline admin forms for creating governed public tags and resolving raw custom tags
+- Current `v0.3.0-beta.2` release notes in Chinese and English
+
+### Changed
+
+- Upgraded the admin dashboard from read-only raw-tag display to actionable tag-governance flow
+- Changed homepage public tag filtering from single-select to multi-select
+- Improved selected-tag visibility in both public and admin selection surfaces
+- Unified the current Chinese terminology around `Gallery`, `Dashboard`, and admin-facing tag actions
+- Updated the root `README`, docs index, prompt notes, and API docs to reflect the current beta state
+
+### Validation
+
+- `server` build passes
+- `client` build passes
+- Lint checks for the files touched in this beta pass
+
+### Current Limitations
+
+- Alias creation / merge flow for private custom tags is still not implemented
+- Full multilingual UI switching still needs more end-to-end polishing
+- The repository still contains some older frontend lint issues outside the scope of this beta
+- Viewer bundle size remains relatively large
+
+### Release Docs
+
+- `docs/releases/v0.3.0-beta.2.en.md`
+- `docs/releases/v0.3.0-beta.2.zh-CN.md`
+
 ## v0.1.0 - 2026-04-17
 
 This is the first formal MVP release milestone for `MeshFree`.
