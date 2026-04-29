@@ -1,6 +1,8 @@
 import type { AdminRawTag, PublicTag } from "./tag";
 
 export type AdminSubmissionStatus = "pending" | "approved" | "rejected";
+export type SubmissionSourceFormat = "obj" | "fbx" | "dae" | "blend" | "glb" | "unknown";
+export type SubmissionPreviewConversionStatus = "not_attempted" | "success" | "warning" | "failed";
 
 export interface AdminLoginPayload {
   username: string;
@@ -20,6 +22,12 @@ export interface AdminSubmissionSummary {
   coverImageUrl: string;
   status: AdminSubmissionStatus;
   rejectReason: string | null;
+  sourceFormat: SubmissionSourceFormat;
+  previewConversionStatus: SubmissionPreviewConversionStatus;
+  previewConversionMessage: string | null;
+  isPreviewEnabled: boolean;
+  isPublicVisible: boolean;
+  hasMissingTextures: boolean;
   createdAt: string;
   reviewedAt: string | null;
   tags: PublicTag[];

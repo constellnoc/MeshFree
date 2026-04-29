@@ -18,6 +18,22 @@ enum SubmissionStatus {
   rejected
 }
 
+enum SourceFormat {
+  obj
+  fbx
+  dae
+  blend
+  glb
+  unknown
+}
+
+enum PreviewConversionStatus {
+  not_attempted
+  success
+  warning
+  failed
+}
+
 enum TagScopeLevel {
   broad
   medium
@@ -39,20 +55,26 @@ model Admin {
 }
 
 model Submission {
-  id             Int              @id @default(autoincrement())
-  title          String
-  description    String
-  contact        String
-  coverImagePath String
-  modelZipPath   String
-  previewModelPath String?
-  status         SubmissionStatus @default(pending)
-  rejectReason   String?
-  createdAt      DateTime         @default(now())
-  reviewedAt     DateTime?
-  updatedAt      DateTime         @updatedAt
-  tags           SubmissionTag[]
-  rawTags        SubmissionRawTag[]
+  id                      Int                     @id @default(autoincrement())
+  title                   String
+  description             String
+  contact                 String
+  coverImagePath          String
+  modelZipPath            String
+  previewModelPath        String?
+  sourceFormat            SourceFormat            @default(unknown)
+  previewConversionStatus PreviewConversionStatus @default(not_attempted)
+  previewConversionMessage String?
+  isPreviewEnabled        Boolean                 @default(true)
+  isPublicVisible         Boolean                 @default(false)
+  hasMissingTextures      Boolean                 @default(false)
+  status                  SubmissionStatus        @default(pending)
+  rejectReason            String?
+  createdAt               DateTime                @default(now())
+  reviewedAt              DateTime?
+  updatedAt               DateTime                @updatedAt
+  tags                    SubmissionTag[]
+  rawTags                 SubmissionRawTag[]
 }
 
 model Tag {

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Router } from "express";
 
-import { InvalidZipArchiveError, extractPreviewModelFromZip } from "../lib/modelPreview";
+import { inspectModelZip, InvalidZipArchiveError } from "../lib/modelPreview";
 import prisma from "../lib/prisma";
 import {
   InvalidSubmissionTagsError,
@@ -133,7 +133,8 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
     selectedTagSlugs = normalizeAndValidateSelectedTagSlugs(req.body.selectedTagSlugs);
     suggestedTags = normalizeAndValidateSuggestedTags(req.body.suggestedTags ?? req.body.tags);
     await assertTagSlugsExist(selectedTagSlugs);
-    previewModelPath = extractPreviewModelFromZip(modelZipFile.path);
+    const zipInspection = inspectModelZip(modelZipFile.path);
+    previewModelPath = zipInspection.previewModelPath;
 
     const submission = await prisma.submission.create({
       data: {
@@ -143,6 +144,12 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
         coverImagePath: toRelativeUploadPath(coverFile.path),
         modelZipPath: toRelativeUploadPath(modelZipFile.path),
         previewModelPath,
+        sourceFormat: zipInspection.sourceFormat,
+        previewConversionStatus: zipInspection.previewConversionStatus,
+        previewConversionMessage: zipInspection.previewConversionMessage,
+        isPreviewEnabled: true,
+        isPublicVisible: false,
+        hasMissingTextures: false,
         ...(selectedTagSlugs.length > 0
           ? {
               tags: {

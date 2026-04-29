@@ -19,9 +19,16 @@ import {
 } from "../api/admin";
 import { getPublicTags } from "../api/tags";
 import { useLanguage } from "../contexts/LanguageContext";
+import type { AppCopy } from "../lib/i18n";
 import { toIntlLocale } from "../lib/i18n";
 import { getScopeLevelClassName, maxSelectedTagsPerSubmission } from "../lib/tags";
-import type { AdminSubmissionDetail, AdminSubmissionStatus, AdminSubmissionSummary } from "../types/admin";
+import type {
+  AdminSubmissionDetail,
+  AdminSubmissionStatus,
+  AdminSubmissionSummary,
+  SubmissionPreviewConversionStatus,
+  SubmissionSourceFormat,
+} from "../types/admin";
 import type { ManagedTagPayload, PublicTag, TagScopeLevel } from "../types/tag";
 
 type SubmissionFilter = "all" | AdminSubmissionStatus;
@@ -89,6 +96,17 @@ function getDashboardErrorMessage(error: unknown, fallbackMessage: string): stri
   }
 
   return error instanceof Error ? error.message : fallbackMessage;
+}
+
+function formatSourceFormat(sourceFormat: SubmissionSourceFormat, copy: AppCopy["admin"]): string {
+  return copy.sourceFormatValues[sourceFormat];
+}
+
+function formatPreviewConversionStatus(
+  status: SubmissionPreviewConversionStatus,
+  copy: AppCopy["admin"],
+): string {
+  return copy.previewConversionStatusValues[status];
 }
 
 export function AdminDashboardPage() {
@@ -682,6 +700,32 @@ export function AdminDashboardPage() {
                     <strong>{copy.admin.zipFileLabel}:</strong> {selectedSubmission.modelZipName}
                   </p>
                   <p>
+                    <strong>{copy.admin.sourceFormatLabel}:</strong>{" "}
+                    {formatSourceFormat(selectedSubmission.sourceFormat, copy.admin)}
+                  </p>
+                  <p>
+                    <strong>{copy.admin.previewConversionStatusLabel}:</strong>{" "}
+                    {formatPreviewConversionStatus(selectedSubmission.previewConversionStatus, copy.admin)}
+                  </p>
+                  <p>
+                    <strong>{copy.admin.previewEnabledLabel}:</strong>{" "}
+                    {selectedSubmission.isPreviewEnabled
+                      ? copy.admin.previewEnabledValues.enabled
+                      : copy.admin.previewEnabledValues.disabled}
+                  </p>
+                  <p>
+                    <strong>{copy.admin.publicVisibilityLabel}:</strong>{" "}
+                    {selectedSubmission.isPublicVisible
+                      ? copy.admin.publicVisibilityValues.public
+                      : copy.admin.publicVisibilityValues.private}
+                  </p>
+                  <p>
+                    <strong>{copy.admin.missingTexturesLabel}:</strong>{" "}
+                    {selectedSubmission.hasMissingTextures
+                      ? copy.admin.missingTexturesValues.yes
+                      : copy.admin.missingTexturesValues.no}
+                  </p>
+                  <p>
                     <strong>{copy.admin.createdLabel}:</strong>{" "}
                     {formatDateTime(selectedSubmission.createdAt, toIntlLocale(locale), copy.admin.notReviewedYet)}
                   </p>
@@ -692,6 +736,12 @@ export function AdminDashboardPage() {
                   {selectedSubmission.rejectReason ? (
                     <p>
                       <strong>{copy.admin.rejectReasonLabel}:</strong> {selectedSubmission.rejectReason}
+                    </p>
+                  ) : null}
+                  {selectedSubmission.previewConversionMessage ? (
+                    <p>
+                      <strong>{copy.admin.previewConversionMessageLabel}:</strong>{" "}
+                      {selectedSubmission.previewConversionMessage}
                     </p>
                   ) : null}
                 </div>

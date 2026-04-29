@@ -103,6 +103,7 @@ router.get("/", async (req, res) => {
   const submissions = await prisma.submission.findMany({
     where: {
       status: "approved",
+      isPublicVisible: true,
       ...(query || normalizedTags.length > 0
         ? {
             AND: [
@@ -219,6 +220,7 @@ router.get("/:id", async (req, res) => {
     where: {
       id: submissionId,
       status: "approved",
+      isPublicVisible: true,
     },
     select: {
       id: true,
@@ -270,6 +272,7 @@ router.get("/:id/download", async (req, res) => {
     where: {
       id: submissionId,
       status: "approved",
+      isPublicVisible: true,
     },
     select: {
       title: true,

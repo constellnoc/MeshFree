@@ -56,6 +56,9 @@ function normalizeTagSlugInput(value: unknown) {
     .replace(/^-+|-+$/g, "");
 }
 
+type SubmissionSourceFormat = "obj" | "fbx" | "dae" | "blend" | "glb" | "unknown";
+type SubmissionPreviewConversionStatus = "not_attempted" | "success" | "warning" | "failed";
+
 function toAdminSubmissionSummary(submission: {
   id: number;
   title: string;
@@ -64,6 +67,12 @@ function toAdminSubmissionSummary(submission: {
   coverImagePath: string;
   status: "pending" | "approved" | "rejected";
   rejectReason: string | null;
+  sourceFormat: SubmissionSourceFormat;
+  previewConversionStatus: SubmissionPreviewConversionStatus;
+  previewConversionMessage: string | null;
+  isPreviewEnabled: boolean;
+  isPublicVisible: boolean;
+  hasMissingTextures: boolean;
   createdAt: Date;
   reviewedAt: Date | null;
   tags: Array<{
@@ -85,6 +94,12 @@ function toAdminSubmissionSummary(submission: {
     coverImageUrl: toPublicAssetUrl(submission.coverImagePath),
     status: submission.status,
     rejectReason: submission.rejectReason,
+    sourceFormat: submission.sourceFormat,
+    previewConversionStatus: submission.previewConversionStatus,
+    previewConversionMessage: submission.previewConversionMessage,
+    isPreviewEnabled: submission.isPreviewEnabled,
+    isPublicVisible: submission.isPublicVisible,
+    hasMissingTextures: submission.hasMissingTextures,
     createdAt: submission.createdAt.toISOString(),
     reviewedAt: submission.reviewedAt?.toISOString() ?? null,
     tags: mapSubmissionTags(submission.tags, locale),
@@ -100,6 +115,12 @@ function toAdminSubmissionDetail(submission: {
   modelZipPath: string;
   status: "pending" | "approved" | "rejected";
   rejectReason: string | null;
+  sourceFormat: SubmissionSourceFormat;
+  previewConversionStatus: SubmissionPreviewConversionStatus;
+  previewConversionMessage: string | null;
+  isPreviewEnabled: boolean;
+  isPublicVisible: boolean;
+  hasMissingTextures: boolean;
   createdAt: Date;
   reviewedAt: Date | null;
   tags: Array<{
@@ -280,6 +301,12 @@ async function getAdminSubmissionDetailRecord(submissionId: number) {
       modelZipPath: true,
       status: true,
       rejectReason: true,
+      sourceFormat: true,
+      previewConversionStatus: true,
+      previewConversionMessage: true,
+      isPreviewEnabled: true,
+      isPublicVisible: true,
+      hasMissingTextures: true,
       createdAt: true,
       reviewedAt: true,
       tags: {
@@ -410,6 +437,12 @@ router.get("/submissions", async (req, res) => {
       coverImagePath: true,
       status: true,
       rejectReason: true,
+      sourceFormat: true,
+      previewConversionStatus: true,
+      previewConversionMessage: true,
+      isPreviewEnabled: true,
+      isPublicVisible: true,
+      hasMissingTextures: true,
       createdAt: true,
       reviewedAt: true,
       tags: {
@@ -806,6 +839,12 @@ router.patch("/submissions/:id/tags", async (req, res) => {
         modelZipPath: true,
         status: true,
         rejectReason: true,
+        sourceFormat: true,
+        previewConversionStatus: true,
+        previewConversionMessage: true,
+        isPreviewEnabled: true,
+        isPublicVisible: true,
+        hasMissingTextures: true,
         createdAt: true,
         reviewedAt: true,
         tags: {
@@ -905,6 +944,7 @@ router.patch("/submissions/:id/approve", async (req, res) => {
     data: {
       status: "approved",
       rejectReason: null,
+      isPublicVisible: true,
       reviewedAt: new Date(),
     },
   });
@@ -962,6 +1002,7 @@ router.patch("/submissions/:id/reject", async (req, res) => {
     data: {
       status: "rejected",
       rejectReason,
+      isPublicVisible: false,
       reviewedAt: new Date(),
     },
   });
