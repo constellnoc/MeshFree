@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import axios from "axios";
 
 import { createSubmission } from "../api/submissions";
@@ -128,6 +128,27 @@ export function UploadPage() {
     );
   }, [contact, description, selectedTagSlugs, suggestedTags, title]);
 
+  useEffect(() => {
+    if (!successResult) {
+      return;
+    }
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSuccessResult(null);
+      }
+    };
+
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [successResult]);
+
   const handleCoverChange = (event: ChangeEvent<HTMLInputElement>) => {
     setCoverFile(event.target.files?.[0] ?? null);
   };
@@ -169,7 +190,7 @@ export function UploadPage() {
     setSuggestedTags((currentTags) => currentTags.filter((tag) => tag !== tagToRemove));
   };
 
-  const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const handleTagInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter" && event.key !== ",") {
       return;
     }
@@ -478,15 +499,38 @@ export function UploadPage() {
         </ul>
 
         {errorMessage ? <p className="form-message error-message">{errorMessage}</p> : null}
+      </div>
 
-        {successResult ? (
-          <div className="form-message success-message">
+      {successResult ? (
+        <div className="submission-success-overlay" onClick={() => setSuccessResult(null)}>
+          <div
+            className="submission-success-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={copy.upload.successDialogAriaLabel}
+          >
+            <button
+              className="submission-success-close"
+              type="button"
+              onClick={() => setSuccessResult(null)}
+              aria-label={copy.upload.successDialogAriaLabel}
+            >
+              ×
+            </button>
+            <p className="section-kicker">{copy.upload.kicker}</p>
+            <h2>{copy.upload.successDialogTitle}</h2>
             <p>{getLocalizedSubmissionMessage(successResult.message)}</p>
             <p>{copy.upload.uploadId}: {successResult.submissionId}</p>
             <p>{copy.upload.status}: {copy.upload.statusValues[successResult.status]}</p>
+            <div className="actions">
+              <button className="button-link" type="button" onClick={() => setSuccessResult(null)}>
+                {copy.upload.successDialogClose}
+              </button>
+            </div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }

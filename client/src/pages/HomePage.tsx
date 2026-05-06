@@ -264,7 +264,6 @@ export function HomePage() {
               <div className="model-meta">
                 <p className="model-date">{copy.home.approvedResource}</p>
                 <h2>{model.title}</h2>
-                <p>{model.description}</p>
                 {model.tags.length > 0 ? (
                   <div className="selected-tag-list model-tag-list">
                     {model.tags.map((tag) => (

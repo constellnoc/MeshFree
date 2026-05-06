@@ -176,7 +176,7 @@ export function ModelDetailPage({ presentation = "page" }: ModelDetailPageProps)
         <p className="section-kicker">{isModal ? copy.modelDetail.modalKicker : copy.modelDetail.pageKicker}</p>
         <h2>{model.title}</h2>
         <div className={isModal ? "detail-description detail-description-scroll" : "detail-description"}>
-          <p>{model.description}</p>
+          <div className="detail-description-text">{model.description}</div>
         </div>
         {model.tags.length > 0 ? (
           <div className="selected-tag-list model-tag-list">
