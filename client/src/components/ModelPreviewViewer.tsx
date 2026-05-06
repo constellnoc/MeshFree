@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Html, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import type { Color, Material, Mesh, Object3D, PerspectiveCamera, Texture } from "three";
-import { ACESFilmicToneMapping, Box3, DoubleSide, SRGBColorSpace, Vector3 } from "three";
+import { ACESFilmicToneMapping, Box3, DoubleSide, MOUSE, SRGBColorSpace, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import { useLanguage } from "../contexts/LanguageContext";
@@ -349,8 +349,14 @@ function PreviewScene({
         ref={controlsRef}
         enableDamping
         dampingFactor={0.08}
-        enablePan={false}
+        enablePan
         makeDefault
+        mouseButtons={{
+          LEFT: MOUSE.ROTATE,
+          MIDDLE: MOUSE.PAN,
+          RIGHT: MOUSE.PAN,
+        }}
+        panSpeed={0.9}
         rotateSpeed={0.82}
         zoomSpeed={0.86}
       />

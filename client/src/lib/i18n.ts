@@ -290,7 +290,7 @@ const en = {
     close: "Close",
     unavailable: "3D preview is unavailable for this file.",
     loading: "Loading model preview...",
-    hint: "Drag to rotate and scroll to zoom.",
+    hint: "Drag to rotate, middle-drag to pan, and scroll to zoom.",
     srOnlyTitle: (title: string) => `${title} 3D preview viewer.`,
   },
 };
@@ -567,7 +567,7 @@ const zhCN: AppCopy = {
     close: "关闭",
     unavailable: "此文件无法进行 3D 预览。",
     loading: "加载模型预览中...",
-    hint: "拖拽旋转，滚动缩放。",
+    hint: "拖拽旋转，中键拖动平移，滚动缩放。",
     srOnlyTitle: (title: string) => `${title} 3D 预览查看器。`,
   },
 };
