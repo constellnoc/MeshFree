@@ -2,8 +2,9 @@ import fs from "fs";
 import path from "path";
 import { Router } from "express";
 
-import { inspectModelZip, InvalidZipArchiveError } from "../lib/modelPreview";
+import { InvalidZipArchiveError } from "../lib/modelPreview";
 import prisma from "../lib/prisma";
+import { createPreviewConversionResult } from "../lib/previewConversion";
 import {
   InvalidSubmissionTagsError,
   normalizeAndValidateSelectedTagSlugs,
@@ -133,8 +134,8 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
     selectedTagSlugs = normalizeAndValidateSelectedTagSlugs(req.body.selectedTagSlugs);
     suggestedTags = normalizeAndValidateSuggestedTags(req.body.suggestedTags ?? req.body.tags);
     await assertTagSlugsExist(selectedTagSlugs);
-    const zipInspection = inspectModelZip(modelZipFile.path);
-    previewModelPath = zipInspection.previewModelPath;
+    const previewConversion = createPreviewConversionResult(modelZipFile.path);
+    previewModelPath = previewConversion.previewModelPath;
 
     const submission = await prisma.submission.create({
       data: {
@@ -144,12 +145,12 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
         coverImagePath: toRelativeUploadPath(coverFile.path),
         modelZipPath: toRelativeUploadPath(modelZipFile.path),
         previewModelPath,
-        sourceFormat: zipInspection.sourceFormat,
-        previewConversionStatus: zipInspection.previewConversionStatus,
-        previewConversionMessage: zipInspection.previewConversionMessage,
+        sourceFormat: previewConversion.sourceFormat,
+        previewConversionStatus: previewConversion.previewConversionStatus,
+        previewConversionMessage: previewConversion.previewConversionMessage,
         isPreviewEnabled: true,
         isPublicVisible: false,
-        hasMissingTextures: false,
+        hasMissingTextures: previewConversion.hasMissingTextures,
         ...(selectedTagSlugs.length > 0
           ? {
               tags: {
