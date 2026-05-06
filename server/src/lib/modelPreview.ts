@@ -23,6 +23,7 @@ type SupportedSourceFormat = (typeof supportedSourceFormatsByExtension)[Supporte
 
 export type ZipModelInspectionResult = {
   previewModelPath: string | null;
+  candidateEntryName: string | null;
   sourceFormat: SupportedSourceFormat | "unknown";
   previewConversionStatus: "not_attempted" | "success" | "warning" | "failed";
   previewConversionMessage: string | null;
@@ -45,11 +46,11 @@ function createPreviewFileName(entryName: string): string {
 }
 
 function getNormalizedEntryName(entry: IZipEntry): string {
-  return entry.entryName.replace(/\\/g, "/").toLowerCase();
+  return entry.entryName.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
 function getEntryExtension(entry: IZipEntry): string {
-  return path.extname(getNormalizedEntryName(entry));
+  return path.extname(getNormalizedEntryName(entry)).toLowerCase();
 }
 
 function isSupportedSourceExtension(extension: string): extension is SupportedSourceExtension {
@@ -70,14 +71,13 @@ function getSourceFormatForEntry(entry: IZipEntry): SupportedSourceFormat {
   return supportedSourceFormatsByExtension[getEntryExtension(entry) as SupportedSourceExtension];
 }
 
-function extractPreviewEntry(entry: IZipEntry): string {
+export function storePreviewBuffer(previewBuffer: Buffer, sourceEntryName: string): string {
   ensurePreviewDirectory();
 
-  const previewFileName = createPreviewFileName(entry.entryName);
+  const previewFileName = createPreviewFileName(sourceEntryName);
   const absolutePreviewPath = path.join(previewModelsDir, previewFileName);
 
   try {
-    const previewBuffer = entry.getData();
     fs.writeFileSync(absolutePreviewPath, previewBuffer);
   } catch (error) {
     if (fs.existsSync(absolutePreviewPath)) {
@@ -90,11 +90,53 @@ function extractPreviewEntry(entry: IZipEntry): string {
   return toRelativeUploadPath(absolutePreviewPath);
 }
 
+function extractPreviewEntry(entry: IZipEntry): string {
+  return storePreviewBuffer(entry.getData(), entry.entryName);
+}
+
 function loadZip(zipFilePath: string): AdmZip {
   try {
     return new AdmZip(zipFilePath);
   } catch (error) {
     throw new InvalidZipArchiveError(error instanceof Error ? error.message : undefined);
+  }
+}
+
+function resolveExtractedZipPath(targetDirectory: string, entryName: string) {
+  const absolutePath = path.resolve(targetDirectory, entryName);
+  const relativePath = path.relative(targetDirectory, absolutePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new InvalidZipArchiveError("ZIP entry path must stay inside the extraction directory.");
+  }
+
+  return absolutePath;
+}
+
+export function extractZipArchiveToDirectory(zipFilePath: string, targetDirectory: string): void {
+  const zip = loadZip(zipFilePath);
+
+  for (const entry of zip.getEntries()) {
+    const entryName = getNormalizedEntryName(entry);
+
+    if (!entryName) {
+      continue;
+    }
+
+    const absoluteEntryPath = resolveExtractedZipPath(targetDirectory, entryName);
+
+    if (entry.isDirectory) {
+      fs.mkdirSync(absoluteEntryPath, { recursive: true });
+      continue;
+    }
+
+    fs.mkdirSync(path.dirname(absoluteEntryPath), { recursive: true });
+
+    try {
+      fs.writeFileSync(absoluteEntryPath, entry.getData());
+    } catch (error) {
+      throw new InvalidZipArchiveError(error instanceof Error ? error.message : undefined);
+    }
   }
 }
 
@@ -105,6 +147,7 @@ export function inspectModelZip(zipFilePath: string): ZipModelInspectionResult {
   if (candidateEntries.length === 0) {
     return {
       previewModelPath: null,
+      candidateEntryName: null,
       sourceFormat: "unknown",
       previewConversionStatus: "not_attempted",
       previewConversionMessage: null,
@@ -114,6 +157,7 @@ export function inspectModelZip(zipFilePath: string): ZipModelInspectionResult {
   if (candidateEntries.length > 1) {
     return {
       previewModelPath: null,
+      candidateEntryName: null,
       sourceFormat: "unknown",
       previewConversionStatus: "warning",
       previewConversionMessage: multipleCandidateMessage,
@@ -126,6 +170,7 @@ export function inspectModelZip(zipFilePath: string): ZipModelInspectionResult {
   if (sourceFormat !== "glb") {
     return {
       previewModelPath: null,
+      candidateEntryName: getNormalizedEntryName(candidateEntry),
       sourceFormat,
       previewConversionStatus: "not_attempted",
       previewConversionMessage: null,
@@ -134,6 +179,7 @@ export function inspectModelZip(zipFilePath: string): ZipModelInspectionResult {
 
   return {
     previewModelPath: extractPreviewEntry(candidateEntry),
+    candidateEntryName: getNormalizedEntryName(candidateEntry),
     sourceFormat,
     previewConversionStatus: "success",
     previewConversionMessage: null,

@@ -134,7 +134,7 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
     selectedTagSlugs = normalizeAndValidateSelectedTagSlugs(req.body.selectedTagSlugs);
     suggestedTags = normalizeAndValidateSuggestedTags(req.body.suggestedTags ?? req.body.tags);
     await assertTagSlugsExist(selectedTagSlugs);
-    const previewConversion = createPreviewConversionResult(modelZipFile.path);
+    const previewConversion = await createPreviewConversionResult(modelZipFile.path);
     previewModelPath = previewConversion.previewModelPath;
 
     const submission = await prisma.submission.create({
