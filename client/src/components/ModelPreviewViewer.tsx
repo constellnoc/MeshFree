@@ -1,9 +1,10 @@
 import { Component, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { Html, OrbitControls, useGLTF } from "@react-three/drei";
+import type { ChangeEvent, ReactNode } from "react";
+import { Html, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import type { Color, Material, Mesh, Object3D, PerspectiveCamera, Texture } from "three";
-import { ACESFilmicToneMapping, Box3, DoubleSide, MOUSE, SRGBColorSpace, Vector3 } from "three";
+import type { AnimationAction, AnimationClip, Color, Material, Mesh, Object3D, PerspectiveCamera, Texture } from "three";
+import { ACESFilmicToneMapping, Box3, MOUSE, SRGBColorSpace, Vector3 } from "three";
+import { clone as cloneSkinnedScene } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import { useLanguage } from "../contexts/LanguageContext";
@@ -86,6 +87,26 @@ type PreviewMaterial = Material & {
   needsUpdate?: boolean;
 };
 
+interface ViewerCopy {
+  backgroundGroupAriaLabel: string;
+  backgroundPresetLabels: Record<ViewerBackgroundPreset, string>;
+  switchBackgroundTo: (label: string) => string;
+  resetView: string;
+  close: string;
+  unavailable: string;
+  loading: string;
+  hint: string;
+  srOnlyTitle: (title: string) => string;
+  animationDetected: string;
+  noAnimation: string;
+  playAnimation: string;
+  pauseAnimation: string;
+  resetAnimation: string;
+  animationSelectLabel: string;
+  currentAnimationLabel: string;
+  animationClipFallback: (index: number) => string;
+}
+
 type SpecGlossExtension = {
   diffuseFactor?: [number, number, number, number];
   diffuseTexture?: {
@@ -136,10 +157,24 @@ function prepareSceneColors(root: Object3D) {
         previewMaterial.emissiveMap.colorSpace = SRGBColorSpace;
       }
 
-      previewMaterial.side = DoubleSide;
       previewMaterial.needsUpdate = true;
     }
   });
+}
+
+function stopAllActions(actions: Record<string, AnimationAction | null | undefined>) {
+  for (const action of Object.values(actions)) {
+    action?.stop();
+  }
+}
+
+function configurePerspectiveCamera(camera: PerspectiveCamera, near: number, far: number) {
+  camera.near = near;
+  camera.far = far;
+}
+
+function setAnimationPaused(action: AnimationAction, paused: boolean) {
+  action.paused = paused;
 }
 
 async function applyLegacySpecGlossMaterials(
@@ -237,12 +272,14 @@ function PreviewScene({
   modelUrl,
   resetVersion,
   backgroundColor,
+  copy,
 }: {
   modelUrl: string;
   resetVersion: number;
   backgroundColor: string;
+  copy: ViewerCopy;
 }) {
-  const gltf = useGLTF(modelUrl) as { scene: Object3D; parser?: GLTFParserLike };
+  const gltf = useGLTF(modelUrl) as { animations?: AnimationClip[]; scene: Object3D; parser?: GLTFParserLike };
   const { camera, invalidate } = useThree();
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const initialViewRef = useRef<{
@@ -252,11 +289,36 @@ function PreviewScene({
     maxDistance: number;
   } | null>(null);
   const parserRef = useRef<GLTFParserLike | undefined>(gltf.parser);
+  const animationClips = useMemo(
+    () =>
+      (gltf.animations ?? []).map((clip, index) => {
+        const nextClip = clip.clone();
+
+        if (!nextClip.name.trim()) {
+          nextClip.name = `__meshfree_clip_${index + 1}`;
+        }
+
+        return nextClip;
+      }),
+    [gltf.animations],
+  );
   const clonedScene = useMemo(() => {
-    const nextScene = gltf.scene.clone(true);
+    const nextScene = cloneSkinnedScene(gltf.scene);
     prepareSceneColors(nextScene);
     return nextScene;
   }, [gltf.scene]);
+  const { actions } = useAnimations(animationClips, clonedScene);
+  const animationOptions = useMemo(
+    () =>
+      animationClips.map((clip, index) => ({
+        label: clip.name.startsWith("__meshfree_clip_") ? copy.animationClipFallback(index + 1) : clip.name,
+        name: clip.name,
+      })),
+    [animationClips, copy],
+  );
+  const [activeAnimationName, setActiveAnimationName] = useState<string | null>(animationOptions[0]?.name ?? null);
+  const [isAnimationPlaying, setIsAnimationPlaying] = useState(animationOptions.length > 0);
+  const hasAnimations = animationOptions.length > 0;
 
   useEffect(() => {
     parserRef.current = gltf.parser;
@@ -296,8 +358,7 @@ function PreviewScene({
     const maxDistance = Math.max(distance * 4.5, minDistance + 2);
 
     perspectiveCamera.position.copy(nextPosition);
-    perspectiveCamera.near = Math.max(distance / 100, 0.01);
-    perspectiveCamera.far = Math.max(distance * 25, 100);
+    configurePerspectiveCamera(perspectiveCamera, Math.max(distance / 100, 0.01), Math.max(distance * 25, 100));
     perspectiveCamera.lookAt(center);
     perspectiveCamera.updateProjectionMatrix();
 
@@ -336,15 +397,127 @@ function PreviewScene({
     }
   }, [camera, resetVersion]);
 
+  useEffect(() => {
+    stopAllActions(actions);
+
+    if (!activeAnimationName) {
+      return;
+    }
+
+    const nextAction = actions[activeAnimationName];
+
+    if (!nextAction) {
+      return;
+    }
+
+    nextAction.reset();
+    setAnimationPaused(nextAction, false);
+
+    if (isAnimationPlaying) {
+      nextAction.play();
+    }
+
+    return () => {
+      nextAction.stop();
+    };
+  }, [actions, activeAnimationName, isAnimationPlaying]);
+
+  useEffect(() => () => stopAllActions(actions), [actions]);
+
+  const currentAnimationLabel =
+    animationOptions.find((option) => option.name === activeAnimationName)?.label ?? copy.noAnimation;
+
+  function handleToggleAnimation() {
+    if (!activeAnimationName) {
+      return;
+    }
+
+    const nextAction = actions[activeAnimationName];
+
+    if (!nextAction) {
+      return;
+    }
+
+    if (isAnimationPlaying) {
+      setAnimationPaused(nextAction, true);
+      setIsAnimationPlaying(false);
+      return;
+    }
+
+    setAnimationPaused(nextAction, false);
+    nextAction.play();
+    setIsAnimationPlaying(true);
+  }
+
+  function handleResetAnimation() {
+    if (!activeAnimationName) {
+      return;
+    }
+
+    const nextAction = actions[activeAnimationName];
+
+    if (!nextAction) {
+      return;
+    }
+
+    nextAction.reset();
+    setAnimationPaused(nextAction, false);
+    nextAction.play();
+    setIsAnimationPlaying(true);
+  }
+
+  function handleAnimationChange(event: ChangeEvent<HTMLSelectElement>) {
+    setActiveAnimationName(event.target.value);
+    setIsAnimationPlaying(true);
+  }
+
   return (
     <>
       <color attach="background" args={[backgroundColor]} />
-      <ambientLight intensity={1.35} />
-      <hemisphereLight groundColor="#111827" intensity={0.92} color="#ffffff" />
-      <directionalLight color="#f8fafc" intensity={1.25} position={[4, 6, 5]} />
-      <directionalLight color="#e2e8f0" intensity={0.42} position={[-5, 3, 4]} />
-      <directionalLight color="#dbeafe" intensity={0.24} position={[0, -2, -4]} />
+      <ambientLight intensity={0.55} />
+      <hemisphereLight color="#ffffff" groundColor="#1f2937" intensity={0.35} />
+      <directionalLight color="#ffffff" intensity={1.15} position={[5, 6, 7]} />
+      <directionalLight color="#e5e7eb" intensity={0.28} position={[-4, 2, 4]} />
       <primitive object={clonedScene} />
+      {hasAnimations ? (
+        <Html fullscreen>
+          <div className="detail-viewer-animation-overlay">
+            <div className="detail-viewer-animation-panel" role="group" aria-label={copy.animationDetected}>
+              <div className="detail-viewer-animation-status">
+                <span className="detail-viewer-animation-badge">{copy.animationDetected}</span>
+                <span className="detail-viewer-animation-name">
+                  {copy.currentAnimationLabel}: {currentAnimationLabel}
+                </span>
+              </div>
+              <div className="detail-viewer-animation-actions">
+                <button className="button-link secondary detail-viewer-button" type="button" onClick={handleToggleAnimation}>
+                  {isAnimationPlaying ? copy.pauseAnimation : copy.playAnimation}
+                </button>
+                <button className="button-link secondary detail-viewer-button" type="button" onClick={handleResetAnimation}>
+                  {copy.resetAnimation}
+                </button>
+                {animationOptions.length > 1 ? (
+                  <label className="detail-viewer-animation-select-wrap">
+                    <span className="sr-only">{copy.animationSelectLabel}</span>
+                    <select
+                      className="detail-viewer-animation-select"
+                      value={activeAnimationName ?? ""}
+                      onChange={handleAnimationChange}
+                      aria-label={copy.animationSelectLabel}
+                    >
+                      {animationOptions.map((option) => (
+                        <option key={option.name} value={option.name}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </Html>
+      ) : null}
       <OrbitControls
         ref={controlsRef}
         enableDamping
@@ -419,7 +592,7 @@ export default function ModelPreviewViewer({ modelUrl, title, onClose }: ModelPr
           onCreated={({ gl }) => {
             gl.outputColorSpace = SRGBColorSpace;
             gl.toneMapping = ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.08;
+            gl.toneMappingExposure = 0.98;
           }}
         >
           <Suspense
@@ -429,7 +602,13 @@ export default function ModelPreviewViewer({ modelUrl, title, onClose }: ModelPr
               </Html>
             }
           >
-            <PreviewScene modelUrl={modelUrl} resetVersion={resetVersion} backgroundColor={activeBackground.canvasColor} />
+            <PreviewScene
+              key={modelUrl}
+              modelUrl={modelUrl}
+              resetVersion={resetVersion}
+              backgroundColor={activeBackground.canvasColor}
+              copy={copy.viewer}
+            />
           </Suspense>
         </Canvas>
       </ViewerErrorBoundary>

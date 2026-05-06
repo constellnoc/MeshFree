@@ -640,6 +640,81 @@ html[lang="zh-CN"] body {
   min-height: min(78vh, 860px);
 }
 
+.detail-viewer-animation-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 20px;
+  pointer-events: none;
+}
+
+.detail-viewer-animation-panel {
+  display: grid;
+  gap: 10px;
+  min-width: min(520px, calc(100vw - 40px));
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.64);
+  color: #f8fafc;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24);
+  pointer-events: auto;
+}
+
+.detail-viewer-animation-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-viewer-animation-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-viewer-animation-name {
+  font-size: 0.88rem;
+  color: rgba(241, 245, 249, 0.92);
+}
+
+.detail-viewer-animation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-viewer-animation-select-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.detail-viewer-animation-select {
+  min-width: 168px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.52);
+  color: #f8fafc;
+}
+
+.detail-viewer-animation-select:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.9);
+  outline-offset: 2px;
+}
+
 .detail-viewer-toolbar {
   position: absolute;
   top: 18px;
@@ -738,6 +813,31 @@ html[lang="zh-CN"] body {
   border-color: rgba(148, 163, 184, 0.4);
   background: rgba(255, 255, 255, 0.84) !important;
   color: #0f172a !important;
+}
+
+.detail-viewer-shell-white .detail-viewer-animation-panel,
+.detail-viewer-shell-softWhite .detail-viewer-animation-panel {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(255, 255, 255, 0.88);
+  color: #0f172a;
+}
+
+.detail-viewer-shell-white .detail-viewer-animation-badge,
+.detail-viewer-shell-softWhite .detail-viewer-animation-badge {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.detail-viewer-shell-white .detail-viewer-animation-name,
+.detail-viewer-shell-softWhite .detail-viewer-animation-name {
+  color: rgba(30, 41, 59, 0.88);
+}
+
+.detail-viewer-shell-white .detail-viewer-animation-select,
+.detail-viewer-shell-softWhite .detail-viewer-animation-select {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
 }
 
 .detail-viewer-shell-white .detail-viewer-swatch,
@@ -1592,6 +1692,23 @@ html[lang="zh-CN"] .footer-links a {
 
   .detail-viewer-label {
     max-width: 100%;
+  }
+
+  .detail-viewer-animation-overlay {
+    padding: 12px;
+  }
+
+  .detail-viewer-animation-panel {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .detail-viewer-animation-actions {
+    width: 100%;
+  }
+
+  .detail-viewer-animation-select {
+    width: 100%;
   }
 
   .viewer-modal-overlay {
