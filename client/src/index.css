@@ -645,15 +645,16 @@ html[lang="zh-CN"] body {
   inset: 0;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  padding: 20px;
+  justify-content: flex-start;
+  padding: 88px 20px 20px;
   pointer-events: none;
 }
 
 .detail-viewer-animation-panel {
   display: grid;
   gap: 10px;
-  min-width: min(520px, calc(100vw - 40px));
+  width: min(360px, calc(100vw - 40px));
+  max-width: calc(100vw - 40px);
   padding: 12px 14px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 18px;
@@ -1699,7 +1700,6 @@ html[lang="zh-CN"] .footer-links a {
   }
 
   .detail-viewer-animation-panel {
-    min-width: 0;
     width: 100%;
   }
 

@@ -480,7 +480,7 @@ function PreviewScene({
       <directionalLight color="#e5e7eb" intensity={0.28} position={[-4, 2, 4]} />
       <primitive object={clonedScene} />
       {hasAnimations ? (
-        <Html fullscreen>
+        <Html fullscreen zIndexRange={[1, 0]}>
           <div className="detail-viewer-animation-overlay">
             <div className="detail-viewer-animation-panel" role="group" aria-label={copy.animationDetected}>
               <div className="detail-viewer-animation-status">
