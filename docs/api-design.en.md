@@ -205,7 +205,12 @@ Public
 - `cover` must be a valid image file
 - `cover` must not exceed `2MB`
 - `modelZip` must be a `.zip` file
-- `modelZip` must not exceed `20MB`
+- `modelZip` compressed size must not exceed `50MB`
+- ZIP entry count must not exceed `200`
+- ZIP total uncompressed size must not exceed `200MB`
+- ZIP single-file uncompressed size must not exceed `100MB`
+- ZIP directory depth must not exceed `12`
+- Encrypted ZIP entries are not supported
 
 **Success Response Example**
 
@@ -222,6 +227,12 @@ Public
 ```json
 {
   "message": "Invalid file type or file size exceeds the limit."
+}
+```
+
+```json
+{
+  "message": "Uploaded ZIP could not be read or exceeds safety limits."
 }
 ```
 

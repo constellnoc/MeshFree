@@ -10,6 +10,11 @@ import { toRelativeUploadPath, uploadsDir } from "./uploads";
 const previewModelsDir = path.join(uploadsDir, "previews");
 const multipleCandidateMessage =
   "Detected multiple unrelated candidate model files in the ZIP. Automatic preview selection is not supported yet.";
+const maxZipEntryCount = 200;
+const maxZipTotalUncompressedSize = 200 * 1024 * 1024;
+const maxZipSingleFileSize = 100 * 1024 * 1024;
+const maxZipDirectoryDepth = 12;
+const maxZipProcessingMs = 10_000;
 const supportedSourceFormatsByExtension = {
   ".obj": "obj",
   ".fbx": "fbx",
@@ -20,6 +25,10 @@ const supportedSourceFormatsByExtension = {
 
 type SupportedSourceExtension = keyof typeof supportedSourceFormatsByExtension;
 type SupportedSourceFormat = (typeof supportedSourceFormatsByExtension)[SupportedSourceExtension];
+type ZipEntryHeader = {
+  encrypted?: boolean;
+  size?: number;
+};
 
 export type ZipModelInspectionResult = {
   previewModelPath: string | null;
@@ -49,6 +58,84 @@ function getNormalizedEntryName(entry: IZipEntry): string {
   return entry.entryName.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
+function getZipEntryHeader(entry: IZipEntry): ZipEntryHeader {
+  return entry.header as ZipEntryHeader;
+}
+
+function getEntryUncompressedSize(entry: IZipEntry): number {
+  const size = getZipEntryHeader(entry).size;
+
+  if (typeof size !== "number" || !Number.isFinite(size) || size < 0) {
+    throw new InvalidZipArchiveError("ZIP entry size is invalid.");
+  }
+
+  return size;
+}
+
+function assertProcessingDeadline(startedAt: number): void {
+  if (Date.now() - startedAt > maxZipProcessingMs) {
+    throw new InvalidZipArchiveError("ZIP processing exceeded the time limit.");
+  }
+}
+
+function assertEntryPathIsSafe(entryName: string): void {
+  if (!entryName) {
+    return;
+  }
+
+  const segments = entryName.split("/").filter(Boolean);
+
+  if (segments.length > maxZipDirectoryDepth) {
+    throw new InvalidZipArchiveError("ZIP entry directory depth exceeds the limit.");
+  }
+
+  if (segments.some((segment) => segment === "." || segment === "..")) {
+    throw new InvalidZipArchiveError("ZIP entry path must stay inside the archive root.");
+  }
+}
+
+function validateZipArchive(zip: AdmZip, startedAt: number): void {
+  const entries = zip.getEntries();
+  let totalUncompressedSize = 0;
+  let fileEntryCount = 0;
+
+  if (entries.length > maxZipEntryCount) {
+    throw new InvalidZipArchiveError("ZIP entry count exceeds the limit.");
+  }
+
+  for (const entry of entries) {
+    assertProcessingDeadline(startedAt);
+
+    const entryName = getNormalizedEntryName(entry);
+    assertEntryPathIsSafe(entryName);
+
+    if (getZipEntryHeader(entry).encrypted) {
+      throw new InvalidZipArchiveError("Encrypted ZIP entries are not supported.");
+    }
+
+    if (entry.isDirectory) {
+      continue;
+    }
+
+    const entrySize = getEntryUncompressedSize(entry);
+    fileEntryCount += 1;
+
+    if (entrySize > maxZipSingleFileSize) {
+      throw new InvalidZipArchiveError("ZIP entry size exceeds the limit.");
+    }
+
+    totalUncompressedSize += entrySize;
+
+    if (totalUncompressedSize > maxZipTotalUncompressedSize) {
+      throw new InvalidZipArchiveError("ZIP uncompressed size exceeds the limit.");
+    }
+  }
+
+  if (fileEntryCount === 0) {
+    throw new InvalidZipArchiveError("ZIP archive does not contain files.");
+  }
+}
+
 function getEntryExtension(entry: IZipEntry): string {
   return path.extname(getNormalizedEntryName(entry)).toLowerCase();
 }
@@ -72,6 +159,10 @@ function getSourceFormatForEntry(entry: IZipEntry): SupportedSourceFormat {
 }
 
 export function storePreviewBuffer(previewBuffer: Buffer, sourceEntryName: string): string {
+  if (previewBuffer.length > maxZipSingleFileSize) {
+    throw new InvalidZipArchiveError("Preview file size exceeds the limit.");
+  }
+
   ensurePreviewDirectory();
 
   const previewFileName = createPreviewFileName(sourceEntryName);
@@ -90,8 +181,12 @@ export function storePreviewBuffer(previewBuffer: Buffer, sourceEntryName: strin
   return toRelativeUploadPath(absolutePreviewPath);
 }
 
-function extractPreviewEntry(entry: IZipEntry): string {
-  return storePreviewBuffer(entry.getData(), entry.entryName);
+function extractPreviewEntry(entry: IZipEntry, startedAt: number): string {
+  assertProcessingDeadline(startedAt);
+  const previewBuffer = entry.getData();
+  assertProcessingDeadline(startedAt);
+
+  return storePreviewBuffer(previewBuffer, entry.entryName);
 }
 
 function loadZip(zipFilePath: string): AdmZip {
@@ -114,9 +209,13 @@ function resolveExtractedZipPath(targetDirectory: string, entryName: string) {
 }
 
 export function extractZipArchiveToDirectory(zipFilePath: string, targetDirectory: string): void {
+  const startedAt = Date.now();
   const zip = loadZip(zipFilePath);
+  validateZipArchive(zip, startedAt);
 
   for (const entry of zip.getEntries()) {
+    assertProcessingDeadline(startedAt);
+
     const entryName = getNormalizedEntryName(entry);
 
     if (!entryName) {
@@ -133,7 +232,9 @@ export function extractZipArchiveToDirectory(zipFilePath: string, targetDirector
     fs.mkdirSync(path.dirname(absoluteEntryPath), { recursive: true });
 
     try {
-      fs.writeFileSync(absoluteEntryPath, entry.getData());
+      const entryData = entry.getData();
+      assertProcessingDeadline(startedAt);
+      fs.writeFileSync(absoluteEntryPath, entryData);
     } catch (error) {
       throw new InvalidZipArchiveError(error instanceof Error ? error.message : undefined);
     }
@@ -141,7 +242,9 @@ export function extractZipArchiveToDirectory(zipFilePath: string, targetDirector
 }
 
 export function inspectModelZip(zipFilePath: string): ZipModelInspectionResult {
+  const startedAt = Date.now();
   const zip = loadZip(zipFilePath);
+  validateZipArchive(zip, startedAt);
   const candidateEntries = getCandidateModelEntries(zip);
 
   if (candidateEntries.length === 0) {
@@ -178,7 +281,7 @@ export function inspectModelZip(zipFilePath: string): ZipModelInspectionResult {
   }
 
   return {
-    previewModelPath: extractPreviewEntry(candidateEntry),
+    previewModelPath: extractPreviewEntry(candidateEntry, startedAt),
     candidateEntryName: getNormalizedEntryName(candidateEntry),
     sourceFormat,
     previewConversionStatus: "success",

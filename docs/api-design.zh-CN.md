@@ -205,7 +205,12 @@
 - `cover` 必须是合法图片格式
 - `cover` 大小不能超过 `2MB`
 - `modelZip` 必须是 `.zip` 文件
-- `modelZip` 大小不能超过 `20MB`
+- `modelZip` 压缩包大小不能超过 `50MB`
+- ZIP 条目数不能超过 `200`
+- ZIP 解压后总大小不能超过 `200MB`
+- ZIP 单文件解压后大小不能超过 `100MB`
+- ZIP 内目录层级不能超过 `12`
+- 不支持加密 ZIP 条目
 
 **成功响应示例**
 
@@ -222,6 +227,12 @@
 ```json
 {
   "message": "Invalid file type or file size exceeds the limit."
+}
+```
+
+```json
+{
+  "message": "Uploaded ZIP could not be read or exceeds safety limits."
 }
 ```
 

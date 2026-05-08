@@ -186,7 +186,7 @@ router.post("/", submissionRateLimit, uploadSubmissionFiles, async (req, res) =>
 
     if (error instanceof InvalidZipArchiveError) {
       res.status(400).json({
-        message: "Uploaded ZIP could not be read.",
+        message: "Uploaded ZIP could not be read or exceeds safety limits.",
       });
       return;
     }
