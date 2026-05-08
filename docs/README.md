@@ -1,6 +1,57 @@
-# MeshFree Docs Index
+# MeshFree Docs Guide
 
-## Core Product Docs
+## 1. 文档角色
+
+本项目默认分三层文档：
+
+1. 正式文档
+   - 稳定规则
+   - 产品范围
+   - API 契约
+   - 工作流
+   - 部署与维护流程
+
+2. `session-notes/prompt.md`
+   - 启动规则
+   - 协作规则
+   - 读取顺序
+   - 稳定边界
+
+3. `session-notes/`
+   - 变化信息
+   - 每轮推进
+   - 临时决策
+   - 排障过程
+   - 阶段结论
+
+补充：
+
+- `README.md` 是 GitHub 对外首页，应该优先承担“项目介绍”职责
+- 本文件是内部文档入口，不是对外介绍页
+
+判断规则：
+
+- 稳定、可复用 -> 正式文档
+- 启动、协作、读取顺序 -> `prompt`
+- 快速变化、带时间性的上下文 -> `session-notes`
+
+## 2. 建议读取顺序
+
+新任务默认按这个顺序读：
+
+1. `session-notes/prompt.md`
+2. 本文件 `docs/README.md`
+3. 按任务类型选读正式文档
+4. 最后再看最近且最相关的 `session-notes`
+5. 只有在需要 GitHub 对外介绍视角时，再读 `../README.md`
+
+初始化开始项目时，`session-notes` 默认参考近期的就够了。
+
+不要默认串读整段历史。只有在需要追溯历史决策、解释文档冲突、或用户明确要求时，才去翻更早记录。
+
+## 3. 正式文档入口
+
+### 产品与接口
 
 - Chinese MVP spec: `mvp-spec.zh-CN.md`
 - English MVP spec: `mvp-spec.en.md`
@@ -8,58 +59,82 @@
 - English API design: `api-design.en.md`
 - Chinese multi-format preview workflow: `multi-format-preview-workflow.zh-CN.md`
 
-## Release Docs
+### 发布文档
 
-- Chinese v0.1.0 release notes: `releases/v0.1.0.zh-CN.md`
-- English v0.1.0 release notes: `releases/v0.1.0.en.md`
-- Chinese v0.3.0-beta.2 release notes: `releases/v0.3.0-beta.2.zh-CN.md`
-- English v0.3.0-beta.2 release notes: `releases/v0.3.0-beta.2.en.md`
+- Release notes live in `releases/`
+- Use `../CHANGELOG.md` together with the relevant file under `releases/`
+- Do not hardcode a "current version" here unless release docs and changelog were updated in the same round
 - Repository changelog: `../CHANGELOG.md`
 
-## Deployment Docs
+### 部署与维护
 
 - Chinese full deployment guide: `deployment-guide.zh-CN.md`
 - English full deployment guide: `deployment-guide.en.md`
 - Chinese short deployment checklist: `deployment-checklist.zh-CN.md`
 - Chinese server maintenance guide: `server-maintenance.zh-CN.md`
 
-## Session Notes
+## 4. `session-notes` 用法
 
-Session notes are stored in `session-notes/`.
+`session-notes` 存放在 `session-notes/`。
 
-Current notes:
+使用原则：
 
-- `session-notes/20260410_requirements-and-initialization-prep.md`
-- `session-notes/20260411_1_scaffold-and-connectivity-check.md`
-- `session-notes/20260411_2_mvp-implementation-roadmap.md`
-- `session-notes/20260411_3_prep-infra-completed.md`
-- `session-notes/20260415_1_three-core-loops-completed.md`
-- `session-notes/20260415_2_deployment-discussion-summary.md`
-- `session-notes/20260416_1_deployment-started-and-docs-refined.md`
-- `session-notes/20260416_2_deployment-successfully-completed.md`
-- `session-notes/20260418_1_navigation-structure-and-ui-adjustments.md`
-- `session-notes/20260418_2_home-hero-geometry-execution-handoff.md`
-- `session-notes/20260418_3_homepage-modal-and-motion-progress.md`
-- `session-notes/20260419_1_glb-preview-and-viewer-iteration.md`
-- `session-notes/20260420_1_tag-governance-and-localization-upgrade.md`
-- `session-notes/20260420_2_navigation-about-and-beta-prep.md`
-- `session-notes/20260426_english-copy-for-retranslation.md`
-- `session-notes/20260426_2_weekly-summary-0420-0426.md`
-- `session-notes/prompt.md`
+- 先看最近且相关的
+- 不要默认通读全部历史
+- 较早 note 只在需要追溯决策时回查
+- 稳定结论要回流到正式文档，不要长期埋在 notes 里
 
-## Recommended Reading Order
+建议命名：
 
-If you want to understand the project quickly, read in this order:
+- `YYYYMMDD_n_topic.md`
 
-1. `mvp-spec.zh-CN.md` or `mvp-spec.en.md`
-2. `api-design.zh-CN.md` or `api-design.en.md`
-3. `multi-format-preview-workflow.zh-CN.md` when the task involves multi-format upload, conversion, preview, or admin preview control
-4. `deployment-guide.zh-CN.md` if you are preparing deployment
-5. `deployment-checklist.zh-CN.md` when you are ready to execute deployment step by step
-6. `server-maintenance.zh-CN.md` when you want day-to-day server operations guidance
-7. `session-notes/` only when you need old project history or decision context
+建议结构：
 
-## Notes
+1. 本轮主题
+2. 本轮目标
+3. 已做改动
+4. 关键结论 / 决策
+5. 验证情况
+6. 遗留点
+7. 下一步建议
+
+## 5. 文档更新纪律
+
+如果文档保留，就要规范维护。
+
+### 5.1 正式文档
+
+当以下内容发生实质变化时，同轮更新对应正式文档：
+
+- 产品范围
+- API 行为
+- 数据结构
+- 上传 / 下载 / 审核 / 预览工作流
+- 部署步骤
+- 维护步骤
+
+### 5.2 `CHANGELOG.md` 与 release 文档
+
+这两类文件是发布层文档，不是过程日记。
+
+规则：
+
+- 进入明确版本节点、里程碑节点、对外可见范围变化时，同步更新
+- 如果本轮声明“当前版本 / 当前发布说明 / 当前变更记录”，就必须同步维护
+- 如果没有维护，不要在别处把它们写成当前状态来源
+
+### 5.3 `README.md`
+
+`README.md` 应优先面向 GitHub 访问者：
+
+- 项目介绍
+- 能力概览
+- 目录入口
+- 文档入口
+
+不应长期承担内部项目记忆职责
+
+## 6. 备注
 
 - Keep real secrets out of the repository
 - Do not commit `.env`

@@ -1,50 +1,23 @@
 # MeshFree
 
-`MeshFree` is a lightweight model upload and download website built for MVP demonstration.
+`MeshFree` is a lightweight 3D model gallery and submission platform for MVP-scale review workflows.
 
-Current formal release milestone: `v0.3.0-beta.2`
+It focuses on one simple loop:
 
-The current repository already includes the three core MVP loops:
+- submit model packages as `ZIP`
+- review them in an admin workflow
+- publish approved resources for public browsing and download
 
-- Public model browsing and detail view
-- Public ZIP download
-- Public submission with file upload
+## Key Capabilities
+
+- Public gallery for approved model resources
+- Public model detail pages
+- Public `ZIP` download
+- Public submission flow with cover image and model package upload
 - Admin login and submission review
-- Governed preset tags with public search/filter
-- Multi-select public tag filtering
-- Admin-side raw custom tag governance flow
-- First GLB preview flow
-- Independent `About` page in navigation
-
-## Current Status
-
-The project is no longer only in initialization.
-
-Current status:
-
-- `client` and `server` scaffolding completed
-- `Prisma + SQLite` connected and working
-- Public model list/detail/download flow connected to real data
-- Public submission flow connected to real upload and database logic
-- Admin login and review flow connected to real database and JWT auth
-- Public tag governance structure connected to real data
-- Admin-side raw custom tag handling connected to real review workflow
-- First `GLB` preview flow connected to uploaded model packages
-- Top navigation and independent `About` page adjusted for current beta
-- Current Chinese terminology and typography have been unified for the main user/admin surfaces
-- Chinese and English MVP / API documents completed
-- Chinese and English deployment guides completed
-- Real server deployment completed
-- Current basic testing has not revealed obvious problems
-
-## Release
-
-- Release branch: `release/v0.3.0-beta.2`
-- Release tag: `v0.3.0-beta.2`
-- Current beta release notes:
-  - `docs/releases/v0.3.0-beta.2.en.md`
-  - `docs/releases/v0.3.0-beta.2.zh-CN.md`
-- Change log: `CHANGELOG.md`
+- Governed public tags with search and filtering
+- Admin-side raw custom tag governance
+- First `GLB` preview workflow for uploaded packages
 
 ## Tech Stack
 
@@ -55,69 +28,70 @@ Current status:
 - Process manager: `PM2`
 - Reverse proxy: `Nginx`
 
-## MVP Features
-
-- Public home page for approved models
-- Public model detail page
-- Public ZIP download
-- Public submission form with cover image and ZIP upload
-- First GLB preview extracted from uploaded ZIP package
-- Preset public tags with search and filtering
-- Multi-select tag filtering on the public gallery
-- Independent `About` page
-- Single-admin login
-- Admin submission review, reject, approve, and delete
-- Admin raw custom tag handling:
-  - ignore
-  - resolve to an existing public tag
-  - create a new public tag
-
-## Project Structure
+## Repository Structure
 
 - `client/`: frontend application
 - `server/`: backend application
-- `docs/`: specifications, API documents, deployment guides, and session notes
+- `docs/`: product, API, workflow, deployment, and maintenance docs
+
+## Quick Start
+
+### 1. Install dependencies
+
+```bash
+cd client
+npm install
+
+cd ../server
+npm install
+```
+
+### 2. Prepare server environment
+
+Copy `server/.env.example` to `server/.env`, then set your local values.
+
+### 3. Start development servers
+
+Frontend:
+
+```bash
+cd client
+npm run dev
+```
+
+Backend:
+
+```bash
+cd server
+npm run dev
+```
+
+### 4. Optional local setup helpers
+
+Seed admin account:
+
+```bash
+cd server
+npm run db:seed
+```
 
 ## Documentation
 
-Core documents:
+Main entries:
 
+- Docs guide: `docs/README.md`
 - Chinese MVP spec: `docs/mvp-spec.zh-CN.md`
 - English MVP spec: `docs/mvp-spec.en.md`
 - Chinese API design: `docs/api-design.zh-CN.md`
 - English API design: `docs/api-design.en.md`
-- English beta release notes: `docs/releases/v0.3.0-beta.2.en.md`
-- Chinese beta release notes: `docs/releases/v0.3.0-beta.2.zh-CN.md`
-- Change log: `CHANGELOG.md`
+- Chinese multi-format preview workflow: `docs/multi-format-preview-workflow.zh-CN.md`
+- Changelog: `CHANGELOG.md`
 
-Deployment guides:
-
-- Chinese deployment guide: `docs/deployment-guide.zh-CN.md`
-- English deployment guide: `docs/deployment-guide.en.md`
-
-Progress notes:
-
-- Session notes are stored in `docs/session-notes/`
-
-## Deployment Summary
-
-The current deployment setup is based on:
-
-- `Ubuntu 22.04`
-- `Node.js 20 LTS`
-- `PM2`
-- `Nginx`
-- `SQLite`
-- local uploads
-- primary domain `yukiho.site`
-
-The deployment documentation is still kept in the repository for reproducibility and maintenance:
-
-- `docs/deployment-guide.zh-CN.md`
-- `docs/deployment-guide.en.md`
+Release notes are stored in `docs/releases/`.
 
 ## Notes
 
+- Keep real secrets out of the repository
 - Do not commit `.env`
 - Do not commit real admin passwords
 - Do not commit `JWT_SECRET`
