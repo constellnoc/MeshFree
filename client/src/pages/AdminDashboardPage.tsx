@@ -9,6 +9,7 @@ import {
   clearAdminToken,
   downloadAdminSubmissionZip,
   getAdminSubmissionDetail,
+  getAdminSubmissionCover,
   getAdminSubmissions,
   getAdminToken,
   ignoreAdminRawTag,
@@ -117,6 +118,7 @@ export function AdminDashboardPage() {
   const [submissions, setSubmissions] = useState<AdminSubmissionSummary[]>([]);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<AdminSubmissionDetail | null>(null);
+  const [selectedCoverObjectUrl, setSelectedCoverObjectUrl] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [selectedTagSlugs, setSelectedTagSlugs] = useState<string[]>([]);
   const [isCreateTagFormOpen, setIsCreateTagFormOpen] = useState(false);
@@ -259,6 +261,49 @@ export function AdminDashboardPage() {
     void loadSubmissionDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale, selectedSubmissionId]);
+
+  useEffect(() => {
+    if (!selectedSubmission) {
+      setSelectedCoverObjectUrl(null);
+      return;
+    }
+
+    let isActive = true;
+    let objectUrl: string | null = null;
+    setSelectedCoverObjectUrl(null);
+
+    const loadSubmissionCover = async () => {
+      try {
+        const coverBlob = await getAdminSubmissionCover(selectedSubmission.id);
+        objectUrl = window.URL.createObjectURL(coverBlob);
+
+        if (isActive) {
+          setSelectedCoverObjectUrl(objectUrl);
+          return;
+        }
+
+        window.URL.revokeObjectURL(objectUrl);
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+
+        setErrorMessage(getDashboardErrorMessage(error, copy.admin.requestFailed));
+      }
+    };
+
+    void loadSubmissionCover();
+
+    return () => {
+      isActive = false;
+
+      if (objectUrl) {
+        window.URL.revokeObjectURL(objectUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubmission?.id]);
 
   const handleLogout = () => {
     clearAdminToken();
@@ -683,11 +728,13 @@ export function AdminDashboardPage() {
 
             {selectedSubmission && !isLoadingDetail ? (
               <>
-                <img
-                  src={selectedSubmission.coverImageUrl}
-                  alt={selectedSubmission.title}
-                  className="admin-detail-cover"
-                />
+                {selectedCoverObjectUrl ? (
+                  <img
+                    src={selectedCoverObjectUrl}
+                    alt={selectedSubmission.title}
+                    className="admin-detail-cover"
+                  />
+                ) : null}
 
                 <div className="admin-detail-meta">
                   <p>

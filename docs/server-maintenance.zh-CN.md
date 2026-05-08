@@ -56,6 +56,8 @@
 - 数据库文件：通常在 `server/prisma/prod.db`
 - 上传文件目录：`/var/www/meshfree/server/uploads`
 
+`server/uploads` 是运行数据目录，不应作为公网静态目录直接暴露。公开封面、公开预览、后台封面和 ZIP 下载都应通过 `/api` 下的受控路由访问。
+
 理解这一点很重要：
 
 - 代码可以通过 `git pull` 更新
@@ -510,6 +512,8 @@ ADMIN_MANAGE_USERNAME="mano" ADMIN_MANAGE_PASSWORD="your-new-strong-password" np
 - 首页能否打开
 - 管理员能否登录
 - 本次修改涉及的业务是否正常
+- `/uploads/...` 直链是否返回 404
+- 公开模型封面、预览和下载是否仍能通过页面正常访问
 
 ### 12.2 偶尔做的系统检查
 
@@ -581,6 +585,13 @@ pm2 logs meshfree-server
 - 文件大小是否超限制
 - 文件格式是否符合要求
 - 后端日志是否有上传错误
+
+如果上传成功但页面图片或预览打不开，继续检查：
+
+- 数据库里的文件路径是否仍指向 `server/uploads` 内部
+- `GET /api/models/:id/cover` 是否能返回公开封面
+- `GET /api/models/:id/preview` 是否能返回公开预览
+- `/uploads/...` 返回 404 是预期行为，不应改回静态公开
 
 ---
 

@@ -1,5 +1,5 @@
 import fs from "fs";
-import { Router } from "express";
+import { Response, Router } from "express";
 
 import prisma from "../lib/prisma";
 import {
@@ -14,7 +14,8 @@ import {
   getStoredFileName,
   parseSubmissionId,
   resolveUploadFilePath,
-  toPublicAssetUrl,
+  toPublicModelCoverUrl,
+  toPublicModelPreviewUrl,
 } from "../lib/uploads";
 
 const router = Router();
@@ -25,6 +26,29 @@ function trimTextField(value: unknown): string {
 
 function resolveLocale(value: unknown) {
   return trimTextField(value) || defaultTagLocale;
+}
+
+function sendPublicUploadFile(res: Response, filePath: string, notFoundMessage: string) {
+  let absoluteFilePath: string;
+
+  try {
+    absoluteFilePath = resolveUploadFilePath(filePath);
+  } catch {
+    res.status(404).json({
+      message: notFoundMessage,
+    });
+    return;
+  }
+
+  if (!fs.existsSync(absoluteFilePath)) {
+    res.status(404).json({
+      message: notFoundMessage,
+    });
+    return;
+  }
+
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.sendFile(absoluteFilePath);
 }
 
 function toModelSummary(submission: {
@@ -48,7 +72,7 @@ function toModelSummary(submission: {
     id: submission.id,
     title: submission.title,
     description: submission.description,
-    coverImageUrl: toPublicAssetUrl(submission.coverImagePath),
+    coverImageUrl: toPublicModelCoverUrl(submission.id),
     createdAt: submission.createdAt.toISOString(),
     tags: mapSubmissionTags(submission.tags, locale),
   };
@@ -74,7 +98,7 @@ function toModelDetail(submission: {
 }, locale: string) {
   return {
     ...toModelSummary(submission, locale),
-    previewModelUrl: submission.previewModelPath ? toPublicAssetUrl(submission.previewModelPath) : null,
+    previewModelUrl: submission.previewModelPath ? toPublicModelPreviewUrl(submission.id) : null,
   };
 }
 
@@ -202,6 +226,68 @@ router.get("/", async (req, res) => {
   });
 
   res.json(submissions.map((submission) => toModelSummary(submission, locale)));
+});
+
+router.get("/:id/cover", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Model asset not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findFirst({
+    where: {
+      id: submissionId,
+      status: "approved",
+      isPublicVisible: true,
+    },
+    select: {
+      coverImagePath: true,
+    },
+  });
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Model asset not found.",
+    });
+    return;
+  }
+
+  sendPublicUploadFile(res, submission.coverImagePath, "Model asset not found.");
+});
+
+router.get("/:id/preview", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Model asset not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findFirst({
+    where: {
+      id: submissionId,
+      status: "approved",
+      isPublicVisible: true,
+    },
+    select: {
+      previewModelPath: true,
+    },
+  });
+
+  if (!submission?.previewModelPath) {
+    res.status(404).json({
+      message: "Model asset not found.",
+    });
+    return;
+  }
+
+  sendPublicUploadFile(res, submission.previewModelPath, "Model asset not found.");
 });
 
 router.get("/:id", async (req, res) => {

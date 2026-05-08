@@ -198,3 +198,12 @@ export async function downloadAdminSubmissionZip(id: number) {
 
   return response.data;
 }
+
+export async function getAdminSubmissionCover(id: number) {
+  const response = await http.get<Blob>(`/admin/submissions/${id}/cover`, {
+    headers: getAuthHeaders(),
+    responseType: "blob",
+  });
+
+  return response.data;
+}

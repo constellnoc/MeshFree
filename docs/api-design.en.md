@@ -62,7 +62,7 @@ Public
     "id": "sub_001",
     "title": "Temple Asset Pack",
     "description": "Low-poly temple model set for practice.",
-    "coverImageUrl": "/uploads/covers/temple.jpg",
+    "coverImageUrl": "/api/models/1/cover",
     "createdAt": "2026-04-10T12:00:00.000Z"
   }
 ]
@@ -98,7 +98,8 @@ Public
   "id": "sub_001",
   "title": "Temple Asset Pack",
   "description": "Low-poly temple model set for practice.",
-  "coverImageUrl": "/uploads/covers/temple.jpg",
+  "coverImageUrl": "/api/models/1/cover",
+  "previewModelUrl": "/api/models/1/preview",
   "createdAt": "2026-04-10T12:00:00.000Z"
 }
 ```
@@ -111,7 +112,29 @@ Public
 }
 ```
 
-### 3.3 Download Approved Model
+### 3.3 Read Public Model Assets
+
+**Method**
+
+`GET /api/models/:id/cover`
+
+`GET /api/models/:id/preview`
+
+**Purpose**
+
+Return the cover image or preview model file for an approved and publicly visible model.
+
+**Access**
+
+Public
+
+**Notes**
+
+- Only resources with `status=approved` and `isPublicVisible=true` can expose public assets through these endpoints
+- Original ZIP files do not expose direct asset URLs and must be downloaded through `GET /api/models/:id/download`
+- `/uploads/...` is no longer used as a public static directory
+
+### 3.4 Download Approved Model
 
 **Method**
 
@@ -289,7 +312,7 @@ Admin only
     "title": "Temple Asset Pack",
     "description": "Low-poly temple model set for practice.",
     "contact": "QQ:123456",
-    "coverImageUrl": "/uploads/covers/temple.jpg",
+    "coverImageUrl": "/api/admin/submissions/3/cover",
     "status": "pending",
     "rejectReason": null,
     "createdAt": "2026-04-10T12:00:00.000Z",
@@ -324,7 +347,7 @@ Admin only
   "title": "Temple Asset Pack",
   "description": "Low-poly temple model set for practice.",
   "contact": "QQ:123456",
-  "coverImageUrl": "/uploads/covers/temple.jpg",
+  "coverImageUrl": "/api/admin/submissions/3/cover",
   "modelZipName": "temple-pack.zip",
   "status": "pending",
   "rejectReason": null,
@@ -348,7 +371,27 @@ Admin only
 }
 ```
 
-### 4.4 Download Submission ZIP
+### 4.4 Read Admin Submission Cover
+
+**Method**
+
+`GET /api/admin/submissions/:id/cover`
+
+**Purpose**
+
+Return the cover image of one submission for the admin review UI.
+
+**Access**
+
+Admin only
+
+**Notes**
+
+- The request must include the admin `Authorization` header
+- The response uses `Cache-Control: no-store`
+- This endpoint only returns the cover image; it does not expose ZIP or preview direct links
+
+### 4.5 Download Submission ZIP
 
 **Method**
 
@@ -639,10 +682,13 @@ The project follows these route naming rules:
 
 - `GET /api/models`
 - `GET /api/models/:id`
+- `GET /api/models/:id/cover`
+- `GET /api/models/:id/preview`
 - `GET /api/models/:id/download`
 - `POST /api/submissions`
 - `POST /api/admin/login`
 - `GET /api/admin/submissions`
+- `GET /api/admin/submissions/:id/cover`
 - `GET /api/admin/submissions/:id/download`
 - `PATCH /api/admin/submissions/:id/tags`
 - `POST /api/admin/tags`
@@ -656,6 +702,7 @@ The project follows these route naming rules:
 ## 6. Error Handling Principles
 
 The API should return simple, clear, and readable error messages.
+Missing routes under `/api`, JSON parse failures, CORS rejections, and unhandled errors should return JSON instead of Express default HTML error pages.
 
 Examples:
 

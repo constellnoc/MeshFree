@@ -1,7 +1,7 @@
 import fs from "fs";
 
 import bcrypt from "bcryptjs";
-import { Router } from "express";
+import { Response, Router } from "express";
 import jwt from "jsonwebtoken";
 import type { Prisma, PrismaClient } from "../generated/prisma/client";
 
@@ -20,7 +20,7 @@ import {
   parseSubmissionId,
   removeUploadFile,
   resolveUploadFilePath,
-  toPublicAssetUrl,
+  toAdminSubmissionCoverUrl,
 } from "../lib/uploads";
 import { authMiddleware } from "../middleware/auth";
 import { createRateLimitMiddleware } from "../middleware/rateLimit";
@@ -47,6 +47,29 @@ function trimTextField(value: unknown): string {
 
 function resolveLocale(value: unknown) {
   return trimTextField(value) || defaultTagLocale;
+}
+
+function sendAdminUploadFile(res: Response, filePath: string, notFoundMessage: string) {
+  let absoluteFilePath: string;
+
+  try {
+    absoluteFilePath = resolveUploadFilePath(filePath);
+  } catch {
+    res.status(404).json({
+      message: notFoundMessage,
+    });
+    return;
+  }
+
+  if (!fs.existsSync(absoluteFilePath)) {
+    res.status(404).json({
+      message: notFoundMessage,
+    });
+    return;
+  }
+
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(absoluteFilePath);
 }
 
 function normalizeTagSlugInput(value: unknown) {
@@ -91,7 +114,7 @@ function toAdminSubmissionSummary(submission: {
     title: submission.title,
     description: submission.description,
     contact: submission.contact,
-    coverImageUrl: toPublicAssetUrl(submission.coverImagePath),
+    coverImageUrl: toAdminSubmissionCoverUrl(submission.id),
     status: submission.status,
     rejectReason: submission.rejectReason,
     sourceFormat: submission.sourceFormat,
@@ -407,6 +430,35 @@ router.post("/login", adminLoginRateLimit, async (req, res) => {
 });
 
 router.use(authMiddleware);
+
+router.get("/submissions/:id/cover", async (req, res) => {
+  const submissionId = parseSubmissionId(req.params.id);
+
+  if (!submissionId) {
+    res.status(404).json({
+      message: "Submission cover not found.",
+    });
+    return;
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: {
+      id: submissionId,
+    },
+    select: {
+      coverImagePath: true,
+    },
+  });
+
+  if (!submission) {
+    res.status(404).json({
+      message: "Submission cover not found.",
+    });
+    return;
+  }
+
+  sendAdminUploadFile(res, submission.coverImagePath, "Submission cover not found.");
+});
 
 router.get("/submissions", async (req, res) => {
   const status = trimTextField(req.query.status);

@@ -52,7 +52,7 @@ The production deployment structure of this project is:
 - `Nginx` provides public HTTPS access
 - The frontend static files built by `Vite` are served directly by `Nginx`
 - Requests to `/api` are reverse proxied by `Nginx` to the Node.js backend
-- Resources under `/uploads` are exposed through the backend static file service
+- Uploaded files are not exposed as a full public directory; covers, previews, and downloads are served through controlled `/api` routes
 - The backend process is managed by `PM2`
 - The database uses local `SQLite` on the server
 - Uploaded files are stored on the local server disk
@@ -308,6 +308,7 @@ sudo ufw status
 ```
 
 The goal is to expose only the ports needed by the current deployment.
+If there is no mail service, do not open `25/tcp`; remove or deny any existing inbound `25/tcp` rule in the cloud firewall or host firewall.
 
 Important reminder:
 
@@ -896,9 +897,26 @@ server {
     listen [::]:80;
     server_name yukiho.site www.yukiho.site;
     client_max_body_size 30m;
+    server_tokens off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Content-Security-Policy "frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     root /var/www/meshfree/client/dist;
     index index.html;
+
+    location /api/admin/ {
+        add_header Cache-Control "no-store" always;
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location /api/ {
         proxy_pass http://127.0.0.1:3001;
@@ -910,12 +928,17 @@ server {
     }
 
     location /uploads/ {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        return 404;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    location /admin {
+        add_header Cache-Control "no-store" always;
+        try_files $uri /index.html;
     }
 
     location / {
@@ -926,6 +949,7 @@ server {
 
 The `client_max_body_size 30m;` line is important.  
 The submission endpoint allows ZIP and cover image uploads, and without an explicit limit here, the default Nginx request body limit can easily cause `413 Request Entity Too Large` errors in production.
+`/uploads/` should return `404` and must not be proxied as a public static directory. Public covers, public previews, admin covers, and ZIP downloads are served by controlled routes under `/api`.
 
 ### 17.2 Enable The Site
 
@@ -1031,6 +1055,7 @@ When the backend starts, it automatically creates:
 - `server/uploads`
 - `server/uploads/covers`
 - `server/uploads/models`
+- `server/uploads/previews`
 
 You must ensure that the user running the Node.js process has read and write access to these directories.
 
@@ -1046,6 +1071,7 @@ If permissions are incorrect, you may see:
 - Public submission upload failures
 - Admin deletion failing to remove files
 - Download endpoint problems
+- Public cover or preview endpoints returning 404
 
 ## 20. Post-Deployment Verification Checklist
 
@@ -1263,7 +1289,8 @@ ADMIN_SEED_PASSWORD="replace-this-with-a-strong-password"
 │   ├── prisma/
 │   ├── uploads/
 │   │   ├── covers/
-│   │   └── models/
+│   │   ├── models/
+│   │   └── previews/
 │   ├── .env
 │   └── ...
 └── docs/

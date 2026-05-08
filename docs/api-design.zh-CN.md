@@ -62,7 +62,7 @@
     "id": "sub_001",
     "title": "Temple Asset Pack",
     "description": "Low-poly temple model set for practice.",
-    "coverImageUrl": "/uploads/covers/temple.jpg",
+    "coverImageUrl": "/api/models/1/cover",
     "createdAt": "2026-04-10T12:00:00.000Z"
   }
 ]
@@ -98,7 +98,8 @@
   "id": "sub_001",
   "title": "Temple Asset Pack",
   "description": "Low-poly temple model set for practice.",
-  "coverImageUrl": "/uploads/covers/temple.jpg",
+  "coverImageUrl": "/api/models/1/cover",
+  "previewModelUrl": "/api/models/1/preview",
   "createdAt": "2026-04-10T12:00:00.000Z"
 }
 ```
@@ -111,7 +112,29 @@
 }
 ```
 
-### 3.3 下载模型
+### 3.3 读取公开模型资产
+
+**方法**
+
+`GET /api/models/:id/cover`
+
+`GET /api/models/:id/preview`
+
+**用途**
+
+返回已审核且公开可见模型的封面图或预览模型文件。
+
+**访问权限**
+
+游客可访问
+
+**说明**
+
+- 只有 `status=approved` 且 `isPublicVisible=true` 的资源可以通过这些接口读取公开资产
+- 原始 ZIP 不提供直链资产 URL，必须通过下载接口 `GET /api/models/:id/download`
+- `/uploads/...` 不再作为公开静态目录使用
+
+### 3.4 下载模型
 
 **方法**
 
@@ -289,7 +312,7 @@
     "title": "Temple Asset Pack",
     "description": "Low-poly temple model set for practice.",
     "contact": "QQ:123456",
-    "coverImageUrl": "/uploads/covers/temple.jpg",
+    "coverImageUrl": "/api/admin/submissions/3/cover",
     "status": "pending",
     "rejectReason": null,
     "createdAt": "2026-04-10T12:00:00.000Z",
@@ -324,7 +347,7 @@
   "title": "Temple Asset Pack",
   "description": "Low-poly temple model set for practice.",
   "contact": "QQ:123456",
-  "coverImageUrl": "/uploads/covers/temple.jpg",
+  "coverImageUrl": "/api/admin/submissions/3/cover",
   "modelZipName": "temple-pack.zip",
   "status": "pending",
   "rejectReason": null,
@@ -348,7 +371,27 @@
 }
 ```
 
-### 4.4 下载投稿 ZIP
+### 4.4 读取后台投稿封面
+
+**方法**
+
+`GET /api/admin/submissions/:id/cover`
+
+**用途**
+
+返回单条投稿的封面图，用于后台审核详情查看。
+
+**访问权限**
+
+仅管理员可访问
+
+**说明**
+
+- 请求必须带管理员 `Authorization` 头
+- 响应使用 `Cache-Control: no-store`
+- 该接口只返回封面图，不提供 ZIP 或预览文件直链
+
+### 4.5 下载投稿 ZIP
 
 **方法**
 
@@ -639,10 +682,13 @@
 
 - `GET /api/models`
 - `GET /api/models/:id`
+- `GET /api/models/:id/cover`
+- `GET /api/models/:id/preview`
 - `GET /api/models/:id/download`
 - `POST /api/submissions`
 - `POST /api/admin/login`
 - `GET /api/admin/submissions`
+- `GET /api/admin/submissions/:id/cover`
 - `GET /api/admin/submissions/:id/download`
 - `PATCH /api/admin/submissions/:id/tags`
 - `POST /api/admin/tags`
@@ -656,6 +702,7 @@
 ## 6. 错误处理原则
 
 接口应尽量返回简单、明确、可读的错误提示。
+`/api` 下不存在的路由、JSON 解析失败、CORS 拒绝和未处理异常都应返回 JSON，不返回 Express 默认 HTML 错页。
 
 示例：
 

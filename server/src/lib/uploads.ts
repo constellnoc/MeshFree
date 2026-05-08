@@ -13,9 +13,16 @@ export function parseSubmissionId(id: string): number | null {
   return parsedId;
 }
 
-export function toPublicAssetUrl(filePath: string): string {
-  const normalizedPath = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
-  return `/uploads/${normalizedPath}`;
+export function toPublicModelCoverUrl(submissionId: number): string {
+  return `/api/models/${submissionId}/cover`;
+}
+
+export function toPublicModelPreviewUrl(submissionId: number): string {
+  return `/api/models/${submissionId}/preview`;
+}
+
+export function toAdminSubmissionCoverUrl(submissionId: number): string {
+  return `/api/admin/submissions/${submissionId}/cover`;
 }
 
 export function resolveUploadFilePath(filePath: string): string {

@@ -52,7 +52,7 @@
 - `Nginx` 对外提供 HTTPS 服务
 - 前端 `Vite` 构建后的静态文件由 `Nginx` 直接提供
 - `/api` 请求由 `Nginx` 反向代理到 Node.js 后端
-- `/uploads` 资源通过后端静态服务暴露
+- 上传文件不整目录公开；封面、预览、下载都通过受控 `/api` 路由读取
 - 后端使用 `PM2` 托管
 - 数据库使用服务器本地 `SQLite`
 - 上传文件保存在服务器本地目录
@@ -308,6 +308,7 @@ sudo ufw status
 ```
 
 目标是只开放当前部署所需端口。
+如果没有邮件服务，不要开放 `25/tcp`；如果云平台或主机防火墙里已有 `25/tcp` 入站规则，应删除或拒绝。
 
 这里需要再次强调：
 
@@ -896,9 +897,26 @@ server {
     listen [::]:80;
     server_name yukiho.site www.yukiho.site;
     client_max_body_size 30m;
+    server_tokens off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Content-Security-Policy "frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     root /var/www/meshfree/client/dist;
     index index.html;
+
+    location /api/admin/ {
+        add_header Cache-Control "no-store" always;
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location /api/ {
         proxy_pass http://127.0.0.1:3001;
@@ -910,12 +928,17 @@ server {
     }
 
     location /uploads/ {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        return 404;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    location /admin {
+        add_header Cache-Control "no-store" always;
+        try_files $uri /index.html;
     }
 
     location / {
@@ -926,6 +949,7 @@ server {
 
 这里的 `client_max_body_size 30m;` 很重要。  
 因为当前投稿接口允许上传 ZIP 和封面图，如果不显式调大这个值，Nginx 默认请求体限制可能会直接导致上传返回 `413 Request Entity Too Large`。
+`/uploads/` 应返回 `404`，不要再代理成公开静态目录；公开封面、公开预览、后台封面和 ZIP 下载都由 `/api` 下的受控路由处理。
 
 ### 17.2 启用站点
 
@@ -1032,6 +1056,7 @@ sudo certbot renew --dry-run
 - `server/uploads`
 - `server/uploads/covers`
 - `server/uploads/models`
+- `server/uploads/previews`
 
 你需要确保运行 Node.js 进程的用户对这些目录拥有读写权限。
 
@@ -1047,6 +1072,7 @@ ls -la /var/www/meshfree/server/uploads
 - 投稿上传失败
 - 后台删除文件失败
 - 下载接口异常
+- 公开封面或预览接口返回 404
 
 ## 20. 首次部署完成后的验证清单
 
@@ -1264,7 +1290,8 @@ ADMIN_SEED_PASSWORD="replace-this-with-a-strong-password"
 │   ├── prisma/
 │   ├── uploads/
 │   │   ├── covers/
-│   │   └── models/
+│   │   ├── models/
+│   │   └── previews/
 │   ├── .env
 │   └── ...
 └── docs/
