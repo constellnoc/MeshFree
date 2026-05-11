@@ -113,6 +113,21 @@ if (allowedOrigins.size === 0) {
   }
 }
 
+const corsOptions = {
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+  methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
+  optionsSuccessStatus: 204,
+  origin(origin: string | undefined, callback: (error: Error | null, origin?: boolean) => void) {
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new CorsForbiddenError());
+  },
+};
+
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
@@ -121,18 +136,7 @@ for (const directory of [uploadsDir, coversDir, modelsDir]) {
 }
 
 app.use(setBaselineSecurityHeaders);
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new CorsForbiddenError());
-    },
-  }),
-);
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/api/admin", setAdminNoStore);
 app.use("/uploads", handleUploadsNotFound);
