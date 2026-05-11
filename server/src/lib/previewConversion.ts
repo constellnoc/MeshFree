@@ -15,9 +15,11 @@ type ObjToGltfConverter = (
     binary: true;
   },
 ) => Promise<Buffer | Uint8Array>;
+type FbxToGltfConverter = (inputFile: string, outputFile: string, options?: string[]) => Promise<string>;
 
 // obj2gltf is only used for the server-side OBJ -> GLB preview path.
 const obj2gltf = require("obj2gltf") as ObjToGltfConverter;
+const fbx2gltf = require("fbx2gltf") as FbxToGltfConverter;
 const createGltf = require("obj2gltf/lib/createGltf") as (objData: unknown, options: Record<string, unknown>) => unknown;
 const loadObj = require("obj2gltf/lib/loadObj") as (
   objPath: string,
@@ -515,10 +517,66 @@ async function convertObjPreview(
   }
 }
 
+async function convertFbxPreview(
+  zipFilePath: string,
+  inspection: ZipModelInspectionResult,
+): Promise<PreviewConversionResult> {
+  if (!inspection.candidateEntryName) {
+    return {
+      previewModelPath: null,
+      sourceFormat: "fbx",
+      previewConversionStatus: "failed",
+      previewConversionMessage: "FBX conversion could not locate the source model file.",
+      hasMissingTextures: false,
+    };
+  }
+
+  const extractionDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "meshfree-preview-"));
+
+  try {
+    extractZipArchiveToDirectory(zipFilePath, extractionDirectory);
+
+    const absoluteFbxPath = resolveExtractedEntryPath(extractionDirectory, inspection.candidateEntryName);
+
+    if (!fs.existsSync(absoluteFbxPath)) {
+      return {
+        previewModelPath: null,
+        sourceFormat: "fbx",
+        previewConversionStatus: "failed",
+        previewConversionMessage: "FBX conversion could not find the extracted source file.",
+        hasMissingTextures: false,
+      };
+    }
+
+    const outputFileName = `${path.basename(inspection.candidateEntryName, path.extname(inspection.candidateEntryName))}.glb`;
+    const outputGlbPath = path.join(extractionDirectory, outputFileName);
+    const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath);
+    const glbBuffer = fs.readFileSync(convertedGlbPath);
+
+    return {
+      previewModelPath: storePreviewBuffer(glbBuffer, `${inspection.candidateEntryName}.glb`),
+      sourceFormat: "fbx",
+      previewConversionStatus: "success",
+      previewConversionMessage: "Converted FBX preview to GLB.",
+      hasMissingTextures: false,
+    };
+  } catch (error) {
+    return {
+      previewModelPath: null,
+      sourceFormat: "fbx",
+      previewConversionStatus: "failed",
+      previewConversionMessage: formatConversionErrorMessage("fbx", error),
+      hasMissingTextures: false,
+    };
+  } finally {
+    fs.rmSync(extractionDirectory, { recursive: true, force: true });
+  }
+}
+
 const previewConversionStrategies: Record<ConfiguredSourceFormat, PreviewConversionStrategy> = {
   glb: passthroughGlbPreview,
   obj: convertObjPreview,
-  fbx: createPendingConverterStrategy("fbx"),
+  fbx: convertFbxPreview,
   dae: createPendingConverterStrategy("dae"),
   blend: createPendingConverterStrategy("blend"),
 };
