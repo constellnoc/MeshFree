@@ -391,7 +391,7 @@ function createObjSpecGlossOptions() {
     outputUpAxis: "Y",
     overridingTextures: {},
     packOcclusion: false,
-    secure: false,
+    secure: true,
     separate: false,
     separateTextures: false,
     specularGlossiness: true,
