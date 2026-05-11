@@ -28,6 +28,7 @@ import { createRateLimitMiddleware } from "../middleware/rateLimit";
 const router = Router();
 const allowedStatuses = new Set(["pending", "approved", "rejected"]);
 const allowedScopeLevels = new Set(["broad", "medium", "specific"]);
+const adminNoStoreCacheControl = "no-store";
 const adminLoginRateLimit = createRateLimitMiddleware({
   windowMs: 15 * 60 * 1000,
   maxRequests: 5,
@@ -68,7 +69,7 @@ function sendAdminUploadFile(res: Response, filePath: string, notFoundMessage: s
     return;
   }
 
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", adminNoStoreCacheControl);
   res.sendFile(absoluteFilePath);
 }
 
@@ -834,6 +835,7 @@ router.get("/submissions/:id/download", async (req, res) => {
   }
 
   const downloadName = getStoredFileName(submission.modelZipPath) || `${submission.title}.zip`;
+  res.setHeader("Cache-Control", adminNoStoreCacheControl);
   res.download(absoluteZipPath, downloadName);
 });
 

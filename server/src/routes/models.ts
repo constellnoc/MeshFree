@@ -19,6 +19,8 @@ import {
 } from "../lib/uploads";
 
 const router = Router();
+const publicAssetCacheControl = "public, max-age=3600";
+const controlledDownloadCacheControl = "private, no-store";
 
 function trimTextField(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -47,7 +49,7 @@ function sendPublicUploadFile(res: Response, filePath: string, notFoundMessage: 
     return;
   }
 
-  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.setHeader("Cache-Control", publicAssetCacheControl);
   res.sendFile(absoluteFilePath);
 }
 
@@ -383,6 +385,7 @@ router.get("/:id/download", async (req, res) => {
   }
 
   const downloadName = getStoredFileName(submission.modelZipPath) || `${submission.title}.zip`;
+  res.setHeader("Cache-Control", controlledDownloadCacheControl);
   res.download(absoluteZipPath, downloadName);
 });
 
