@@ -909,6 +909,11 @@ server {
     index index.html;
 
     location /api/admin/ {
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
@@ -932,11 +937,21 @@ server {
     }
 
     location /assets/ {
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "public, max-age=31536000, immutable" always;
         try_files $uri =404;
     }
 
     location /admin {
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
         try_files $uri /index.html;
     }
@@ -950,6 +965,7 @@ server {
 The `client_max_body_size 30m;` line is important.  
 The submission endpoint allows ZIP and cover image uploads, and without an explicit limit here, the default Nginx request body limit can easily cause `413 Request Entity Too Large` errors in production.
 `/uploads/` should return `404` and must not be proxied as a public static directory. Public covers, public previews, admin covers, and ZIP downloads are served by controlled routes under `/api`.
+If a `location` defines its own `add_header`, Nginx does not merge the outer security headers by default, so the admin page, admin API, and static asset locations must repeat the baseline security headers.
 
 ### 17.2 Enable The Site
 

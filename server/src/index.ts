@@ -42,8 +42,19 @@ function isJsonSyntaxError(error: unknown): error is SyntaxError & { status?: nu
   );
 }
 
-function setBaselineSecurityHeaders(_req: Request, res: Response, next: NextFunction): void {
+function setBaselineSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const isHttpsRequest =
+    req.secure || forwardedProto === "https" || (Array.isArray(forwardedProto) && forwardedProto.includes("https"));
+
+  if (isHttpsRequest) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   next();
 }
 

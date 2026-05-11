@@ -909,6 +909,11 @@ server {
     index index.html;
 
     location /api/admin/ {
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
@@ -932,11 +937,21 @@ server {
     }
 
     location /assets/ {
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "public, max-age=31536000, immutable" always;
         try_files $uri =404;
     }
 
     location /admin {
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
         try_files $uri /index.html;
     }
@@ -950,6 +965,7 @@ server {
 这里的 `client_max_body_size 30m;` 很重要。  
 因为当前投稿接口允许上传 ZIP 和封面图，如果不显式调大这个值，Nginx 默认请求体限制可能会直接导致上传返回 `413 Request Entity Too Large`。
 `/uploads/` 应返回 `404`，不要再代理成公开静态目录；公开封面、公开预览、后台封面和 ZIP 下载都由 `/api` 下的受控路由处理。
+如果某个 `location` 自己声明了 `add_header`，Nginx 不会默认合并外层安全响应头，所以后台页、后台 API 和静态资源位置也要重复声明这些安全头。
 
 ### 17.2 启用站点
 
