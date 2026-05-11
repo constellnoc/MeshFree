@@ -2,9 +2,14 @@ import fs from "fs";
 
 import bcrypt from "bcryptjs";
 import { Response, Router } from "express";
-import jwt from "jsonwebtoken";
 import type { Prisma, PrismaClient } from "../generated/prisma/client";
 
+import {
+  adminSessionCookieName,
+  createAdminSessionToken,
+  getAdminSessionClearCookieOptions,
+  getAdminSessionCookieOptions,
+} from "../lib/adminSession";
 import prisma from "../lib/prisma";
 import {
   defaultTagLocale,
@@ -22,13 +27,14 @@ import {
   resolveUploadFilePath,
   toAdminSubmissionCoverUrl,
 } from "../lib/uploads";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddleware, type AuthenticatedRequest } from "../middleware/auth";
 import { createRateLimitMiddleware } from "../middleware/rateLimit";
 
 const router = Router();
 const allowedStatuses = new Set(["pending", "approved", "rejected"]);
 const allowedScopeLevels = new Set(["broad", "medium", "specific"]);
 const adminNoStoreCacheControl = "no-store";
+const isProduction = process.env.NODE_ENV === "production";
 const adminLoginRateLimit = createRateLimitMiddleware({
   windowMs: 15 * 60 * 1000,
   maxRequests: 5,
@@ -416,21 +422,39 @@ router.post("/login", adminLoginRateLimit, async (req, res) => {
     return;
   }
 
-  const token = jwt.sign(
-    { role: "admin", username: admin.username, adminId: admin.id },
-    jwtSecret,
+  const token = createAdminSessionToken(
     {
-      expiresIn: "1h",
+      adminId: admin.id,
+      username: admin.username,
     },
+    jwtSecret,
   );
 
+  res.cookie(adminSessionCookieName, token, getAdminSessionCookieOptions(isProduction));
   res.json({
     message: "Login successful.",
-    token,
+    admin: {
+      username: admin.username,
+    },
+  });
+});
+
+router.post("/logout", (_req, res) => {
+  res.clearCookie(adminSessionCookieName, getAdminSessionClearCookieOptions(isProduction));
+  res.json({
+    message: "Logout successful.",
   });
 });
 
 router.use(authMiddleware);
+
+router.get("/session", (req: AuthenticatedRequest, res) => {
+  res.json({
+    admin: {
+      username: req.user?.username ?? null,
+    },
+  });
+});
 
 router.get("/submissions/:id/cover", async (req, res) => {
   const submissionId = parseSubmissionId(req.params.id);

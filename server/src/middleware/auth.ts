@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
 
-interface AdminJwtPayload extends JwtPayload {
-  role?: string;
-  username?: string;
-  adminId?: number;
-}
+import {
+  adminSessionCookieName,
+  type AdminJwtPayload,
+  parseCookieHeader,
+  verifyAdminSessionToken,
+} from "../lib/adminSession";
 
 export interface AuthenticatedRequest extends Request {
   user?: AdminJwtPayload;
@@ -16,17 +16,15 @@ export const authMiddleware = (
   res: Response,
   next: NextFunction,
 ): void => {
-  const authHeader = req.headers.authorization;
+  const token = parseCookieHeader(req.headers.cookie).get(adminSessionCookieName);
+  const jwtSecret = process.env.JWT_SECRET;
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!token) {
     res.status(401).json({
-      message: "Unauthorized",
+      message: "Unauthorized.",
     });
     return;
   }
-
-  const token = authHeader.replace("Bearer ", "").trim();
-  const jwtSecret = process.env.JWT_SECRET;
 
   if (!jwtSecret) {
     res.status(500).json({
@@ -36,9 +34,9 @@ export const authMiddleware = (
   }
 
   try {
-    const decodedToken = jwt.verify(token, jwtSecret);
+    const decodedToken = verifyAdminSessionToken(token, jwtSecret);
 
-    if (typeof decodedToken === "string" || decodedToken.role !== "admin") {
+    if (!decodedToken) {
       res.status(401).json({
         message: "Unauthorized.",
       });

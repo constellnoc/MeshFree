@@ -2,6 +2,7 @@ import { http } from "./http";
 import type {
   AdminLoginPayload,
   AdminLoginResult,
+  AdminSessionResult,
   AdminSubmissionDetail,
   AdminSubmissionStatus,
   AdminSubmissionSummary,
@@ -9,68 +10,35 @@ import type {
 import type { AppLocale } from "../lib/i18n";
 import type { ManagedTagPayload, PublicTag } from "../types/tag";
 
-export const adminTokenStorageKey = "meshfree_admin_token";
+const legacyAdminTokenStorageKey = "meshfree_admin_token";
 
-function getAuthHeaders() {
-  const token = localStorage.getItem(adminTokenStorageKey);
-
-  if (!token) {
-    throw new Error("No admin token found.");
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-export function getAdminToken() {
-  return localStorage.getItem(adminTokenStorageKey);
-}
-
-export function setAdminToken(token: string) {
-  localStorage.setItem(adminTokenStorageKey, token);
-}
-
-export function clearAdminToken() {
-  localStorage.removeItem(adminTokenStorageKey);
-}
-
-export function getAdminDisplayName() {
-  const token = getAdminToken();
-
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const [, payload] = token.split(".");
-
-    if (!payload) {
-      return null;
-    }
-
-    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const paddedPayload = normalizedPayload.padEnd(
-      Math.ceil(normalizedPayload.length / 4) * 4,
-      "=",
-    );
-    const decodedPayload = atob(paddedPayload);
-    const parsedPayload = JSON.parse(decodedPayload) as { username?: unknown };
-
-    return typeof parsedPayload.username === "string" ? parsedPayload.username : null;
-  } catch {
-    return null;
-  }
+export function clearLegacyAdminToken() {
+  localStorage.removeItem(legacyAdminTokenStorageKey);
 }
 
 export async function loginAsAdmin(payload: AdminLoginPayload) {
   const response = await http.post<AdminLoginResult>("/admin/login", payload);
+  clearLegacyAdminToken();
+  return response.data;
+}
+
+export async function logoutAdmin() {
+  try {
+    const response = await http.post<{ message: string }>("/admin/logout");
+    return response.data;
+  } finally {
+    clearLegacyAdminToken();
+  }
+}
+
+export async function getAdminSession() {
+  clearLegacyAdminToken();
+  const response = await http.get<AdminSessionResult>("/admin/session");
   return response.data;
 }
 
 export async function getAdminSubmissions(status?: AdminSubmissionStatus, locale: AppLocale = "en") {
   const response = await http.get<AdminSubmissionSummary[]>("/admin/submissions", {
-    headers: getAuthHeaders(),
     params: status ? { status, locale } : { locale },
   });
 
@@ -79,7 +47,6 @@ export async function getAdminSubmissions(status?: AdminSubmissionStatus, locale
 
 export async function getAdminSubmissionDetail(id: number, locale: AppLocale = "en") {
   const response = await http.get<AdminSubmissionDetail>(`/admin/submissions/${id}`, {
-    headers: getAuthHeaders(),
     params: { locale },
   });
 
@@ -90,9 +57,6 @@ export async function approveSubmission(id: number) {
   const response = await http.patch<{ message: string }>(
     `/admin/submissions/${id}/approve`,
     undefined,
-    {
-      headers: getAuthHeaders(),
-    },
   );
 
   return response.data;
@@ -102,18 +66,13 @@ export async function rejectSubmission(id: number, rejectReason: string) {
   const response = await http.patch<{ message: string }>(
     `/admin/submissions/${id}/reject`,
     { rejectReason },
-    {
-      headers: getAuthHeaders(),
-    },
   );
 
   return response.data;
 }
 
 export async function deleteSubmission(id: number) {
-  const response = await http.delete<{ message: string }>(`/admin/submissions/${id}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await http.delete<{ message: string }>(`/admin/submissions/${id}`);
 
   return response.data;
 }
@@ -130,7 +89,6 @@ export async function updateSubmissionTags(
     `/admin/submissions/${id}/tags`,
     { selectedTagSlugs },
     {
-      headers: getAuthHeaders(),
       params: { locale },
     },
   );
@@ -143,7 +101,6 @@ export async function createAdminTag(payload: ManagedTagPayload, locale: AppLoca
     message: string;
     tag: PublicTag;
   }>("/admin/tags", payload, {
-    headers: getAuthHeaders(),
     params: { locale },
   });
 
@@ -155,7 +112,6 @@ export async function ignoreAdminRawTag(rawTagId: number, locale: AppLocale = "e
     message: string;
     submission: AdminSubmissionDetail;
   }>(`/admin/raw-tags/${rawTagId}/ignore`, undefined, {
-    headers: getAuthHeaders(),
     params: { locale },
   });
 
@@ -170,7 +126,6 @@ export async function resolveAdminRawTagToExisting(rawTagId: number, tagSlug: st
     `/admin/raw-tags/${rawTagId}/resolve-existing`,
     { tagSlug },
     {
-      headers: getAuthHeaders(),
       params: { locale },
     },
   );
@@ -183,7 +138,6 @@ export async function createAdminTagFromRawTag(rawTagId: number, payload: Manage
     message: string;
     submission: AdminSubmissionDetail;
   }>(`/admin/raw-tags/${rawTagId}/create-tag`, payload, {
-    headers: getAuthHeaders(),
     params: { locale },
   });
 
@@ -192,7 +146,6 @@ export async function createAdminTagFromRawTag(rawTagId: number, payload: Manage
 
 export async function downloadAdminSubmissionZip(id: number) {
   const response = await http.get<Blob>(`/admin/submissions/${id}/download`, {
-    headers: getAuthHeaders(),
     responseType: "blob",
   });
 
@@ -201,7 +154,6 @@ export async function downloadAdminSubmissionZip(id: number) {
 
 export async function getAdminSubmissionCover(id: number) {
   const response = await http.get<Blob>(`/admin/submissions/${id}/cover`, {
-    headers: getAuthHeaders(),
     responseType: "blob",
   });
 

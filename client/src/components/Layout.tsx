@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { getAdminDisplayName, getAdminToken } from "../api/admin";
+import { getAdminSession } from "../api/admin";
 import { useLanguage } from "../contexts/LanguageContext";
 import { SiteInfoBlock } from "./SiteInfoBlock";
 
@@ -54,8 +54,7 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { locale, setLocale, copy } = useLanguage();
-  const hasAdminToken = Boolean(getAdminToken());
-  const adminDisplayName = getAdminDisplayName();
+  const [adminDisplayName, setAdminDisplayName] = useState<string | null>(null);
   const navSearchInputRef = useRef<HTMLInputElement | null>(null);
   const [homeSection, setHomeSection] = useState<HomeSectionId>(() => {
     return location.pathname === "/" && location.hash === "#gallery" ? "gallery" : "home";
@@ -63,6 +62,30 @@ export function Layout() {
 
   const activeTopbarSection: TopbarSectionId | null =
     location.pathname === "/about" ? "about" : location.pathname === "/" ? homeSection : null;
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadAdminSession = async () => {
+      try {
+        const result = await getAdminSession();
+
+        if (isActive) {
+          setAdminDisplayName(result.admin.username);
+        }
+      } catch {
+        if (isActive) {
+          setAdminDisplayName(null);
+        }
+      }
+    };
+
+    void loadAdminSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [location.pathname]);
 
   useEffect(() => {
     document.title = getDocumentTitle(location.pathname, activeTopbarSection, copy);
@@ -292,7 +315,7 @@ export function Layout() {
             </form>
 
             <div className="topbar-action-group">
-              {hasAdminToken ? (
+              {adminDisplayName ? (
                 <NavLink
                   className={({ isActive }) => (isActive ? "nav-link nav-link-active" : "nav-link")}
                   to="/admin/dashboard"

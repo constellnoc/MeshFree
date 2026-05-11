@@ -6,13 +6,12 @@ import {
   approveSubmission,
   createAdminTag,
   createAdminTagFromRawTag,
-  clearAdminToken,
   downloadAdminSubmissionZip,
   getAdminSubmissionDetail,
   getAdminSubmissionCover,
   getAdminSubmissions,
-  getAdminToken,
   ignoreAdminRawTag,
+  logoutAdmin,
   rejectSubmission,
   resolveAdminRawTagToExisting,
   deleteSubmission,
@@ -166,7 +165,7 @@ export function AdminDashboardPage() {
   );
 
   const handleUnauthorized = () => {
-    clearAdminToken();
+    void logoutAdmin();
     navigate("/admin/login");
   };
 
@@ -184,11 +183,6 @@ export function AdminDashboardPage() {
   }, [copy.admin.requestFailed, locale]);
 
   const loadSubmissions = async (preferredSubmissionId?: number | null) => {
-    if (!getAdminToken()) {
-      handleUnauthorized();
-      return;
-    }
-
     setIsLoadingList(true);
     setErrorMessage("");
 
@@ -305,8 +299,8 @@ export function AdminDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubmission?.id]);
 
-  const handleLogout = () => {
-    clearAdminToken();
+  const handleLogout = async () => {
+    await logoutAdmin();
     navigate("/admin/login");
   };
 

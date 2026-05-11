@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 
-import { getAdminToken, loginAsAdmin, setAdminToken } from "../api/admin";
+import { getAdminSession, loginAsAdmin } from "../api/admin";
 import { useLanguage } from "../contexts/LanguageContext";
 
 function getLoginErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -22,7 +22,31 @@ export function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasStoredToken = Boolean(getAdminToken());
+  const [hasAdminSession, setHasAdminSession] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadAdminSession = async () => {
+      try {
+        const result = await getAdminSession();
+
+        if (isActive) {
+          setHasAdminSession(Boolean(result.admin.username));
+        }
+      } catch {
+        if (isActive) {
+          setHasAdminSession(false);
+        }
+      }
+    };
+
+    void loadAdminSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,11 +60,10 @@ export function AdminLoginPage() {
     setErrorMessage("");
 
     try {
-      const result = await loginAsAdmin({
+      await loginAsAdmin({
         username: username.trim(),
         password: password.trim(),
       });
-      setAdminToken(result.token);
       navigate("/admin/dashboard");
     } catch (error) {
       setErrorMessage(getLoginErrorMessage(error, copy.adminLogin.failedLogin));
@@ -100,7 +123,7 @@ export function AdminLoginPage() {
         </ul>
         <div className="actions">
           <Link className="button-link secondary" to="/admin/dashboard">
-            {hasStoredToken ? copy.adminLogin.goToDashboard : copy.adminLogin.openDashboard}
+            {hasAdminSession ? copy.adminLogin.goToDashboard : copy.adminLogin.openDashboard}
           </Link>
         </div>
       </div>

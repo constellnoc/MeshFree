@@ -11,7 +11,15 @@ export interface AdminLoginPayload {
 
 export interface AdminLoginResult {
   message: string;
-  token: string;
+  admin: {
+    username: string;
+  };
+}
+
+export interface AdminSessionResult {
+  admin: {
+    username: string | null;
+  };
 }
 
 export interface AdminSubmissionSummary {
