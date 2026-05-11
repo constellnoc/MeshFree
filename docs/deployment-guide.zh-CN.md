@@ -895,7 +895,16 @@ sudo nano /etc/nginx/sites-available/meshfree
 server {
     listen 80;
     listen [::]:80;
-    server_name yukiho.site www.yukiho.site;
+    server_name www.yukiho.site;
+    server_tokens off;
+
+    return 301 http://yukiho.site$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yukiho.site;
     client_max_body_size 30m;
     server_tokens off;
 
@@ -915,6 +924,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
+        proxy_hide_header X-Powered-By;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -924,6 +934,7 @@ server {
     }
 
     location /api/ {
+        proxy_hide_header X-Powered-By;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -966,6 +977,8 @@ server {
 因为当前投稿接口允许上传 ZIP 和封面图，如果不显式调大这个值，Nginx 默认请求体限制可能会直接导致上传返回 `413 Request Entity Too Large`。
 `/uploads/` 应返回 `404`，不要再代理成公开静态目录；公开封面、公开预览、后台封面和 ZIP 下载都由 `/api` 下的受控路由处理。
 如果某个 `location` 自己声明了 `add_header`，Nginx 不会默认合并外层安全响应头，所以后台页、后台 API 和静态资源位置也要重复声明这些安全头。
+`www.yukiho.site` 在 HTTP 阶段先跳转到裸域名；HTTPS 接入后仍要验证 `https://www.yukiho.site` 是否跳到 `https://yukiho.site`。
+`proxy_hide_header X-Powered-By;` 用于避免后端框架标识透出到公网响应。
 
 ### 17.2 启用站点
 

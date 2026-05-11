@@ -895,7 +895,16 @@ You can start with a plain HTTP version first, then let `Certbot` attach HTTPS a
 server {
     listen 80;
     listen [::]:80;
-    server_name yukiho.site www.yukiho.site;
+    server_name www.yukiho.site;
+    server_tokens off;
+
+    return 301 http://yukiho.site$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yukiho.site;
     client_max_body_size 30m;
     server_tokens off;
 
@@ -915,6 +924,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
+        proxy_hide_header X-Powered-By;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -924,6 +934,7 @@ server {
     }
 
     location /api/ {
+        proxy_hide_header X-Powered-By;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -966,6 +977,8 @@ The `client_max_body_size 30m;` line is important.
 The submission endpoint allows ZIP and cover image uploads, and without an explicit limit here, the default Nginx request body limit can easily cause `413 Request Entity Too Large` errors in production.
 `/uploads/` should return `404` and must not be proxied as a public static directory. Public covers, public previews, admin covers, and ZIP downloads are served by controlled routes under `/api`.
 If a `location` defines its own `add_header`, Nginx does not merge the outer security headers by default, so the admin page, admin API, and static asset locations must repeat the baseline security headers.
+`www.yukiho.site` redirects to the bare domain during the HTTP stage; after HTTPS is enabled, still verify that `https://www.yukiho.site` redirects to `https://yukiho.site`.
+`proxy_hide_header X-Powered-By;` prevents backend framework identifiers from leaking to public responses.
 
 ### 17.2 Enable The Site
 

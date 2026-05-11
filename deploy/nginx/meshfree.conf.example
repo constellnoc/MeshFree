@@ -1,7 +1,16 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name yukiho.site www.yukiho.site;
+    server_name www.yukiho.site;
+    server_tokens off;
+
+    return 301 http://yukiho.site$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yukiho.site;
     client_max_body_size 30m;
     server_tokens off;
 
@@ -21,6 +30,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Cache-Control "no-store" always;
+        proxy_hide_header X-Powered-By;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -30,6 +40,7 @@ server {
     }
 
     location /api/ {
+        proxy_hide_header X-Powered-By;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
