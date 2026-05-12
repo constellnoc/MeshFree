@@ -261,11 +261,13 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - `previewConversionStrategies.fbx` 已从 pending strategy 切换为真实转换策略。
 - `server npm run build` 通过。
 - `server npm run verify:zip-safety` 通过。
+- 新增 `server npm run verify:fbx-converter`，用于本地 / 服务器检查 `FBX2glTF` 二进制是否可执行。
+- `server npm run verify:fbx-converter` 已在 Windows 本地通过。
 
 尚未完成：
 
 - 还没有真实 FBX 资源包手动上传验证。
-- 还没有确认 Linux 服务器上的 `FBX2glTF` 二进制执行情况。
+- 还没有在 Linux 服务器运行 `server npm run verify:fbx-converter`。
 - 还没有评估 FBX 材质、贴图、骨骼、动画的真实表现。
 
 当前判断：
