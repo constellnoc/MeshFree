@@ -329,6 +329,29 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - `convertFbxPreview()` 调用 `fbx2gltf` 时显式增加 `--pbr-metallic-roughness`。
 - 转换成功说明改为 `Converted FBX preview to GLB with PBR material extraction.`
 
+进一步反馈：
+
+- 用户重新验证后仍然灰模。
+- 服务器上曾误执行 `npx run verify:fbx-converter`，该命令会安装第三方 `run` 包并失败；正确命令是 `npm run verify:fbx-converter`。
+
+继续修正：
+
+- FBX 转换改为多策略尝试：
+  - `--pbr-metallic-roughness`
+  - `--khr-materials-unlit`
+- 服务器会解析生成的 GLB JSON chunk，统计：
+  - `images`
+  - `textures`
+  - 材质上的 texture reference
+- 优先保存贴图计数更高的 GLB。
+- 转换成功说明会包含检测结果，例如：
+  - `Detected 0 image(s), 0 texture(s), and 0 material texture reference(s).`
+
+判断规则：
+
+- 如果重新上传后检测计数仍全是 `0`，说明 `FBX2glTF` 没有从这个 FBX 样本带出贴图。
+- 这种情况下继续调参数的收益会变低，应进入 Blender CLI fallback 或 FBX SDK 对照测试。
+
 后续验证：
 
 1. 重新部署后端。

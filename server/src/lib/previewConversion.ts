@@ -29,7 +29,18 @@ const writeGltf = require("obj2gltf/lib/writeGltf") as (
   gltf: Record<string, unknown>,
   options: Record<string, unknown>,
 ) => Promise<Buffer | Record<string, unknown>>;
-const fbxConversionOptions = ["--pbr-metallic-roughness"];
+const fbxConversionAttempts = [
+  {
+    description: "PBR material extraction",
+    fileSuffix: "pbr",
+    options: ["--pbr-metallic-roughness"],
+  },
+  {
+    description: "unlit material extraction",
+    fileSuffix: "unlit",
+    options: ["--khr-materials-unlit"],
+  },
+] as const;
 
 type PreviewConversionResult = {
   previewModelPath: string | null;
@@ -75,6 +86,12 @@ type ObjGltfMaterial = {
   };
 };
 
+type GlbInspection = {
+  imageCount: number;
+  materialTextureCount: number;
+  textureCount: number;
+};
+
 function createUnconfiguredConverterMessage(sourceFormat: Exclude<ConfiguredSourceFormat, "glb">) {
   return `Server-side preview conversion for ${sourceFormat.toUpperCase()} files is not configured yet.`;
 }
@@ -98,6 +115,65 @@ function formatConversionErrorMessage(sourceFormat: Exclude<ConfiguredSourceForm
   }
 
   return `${fallbackMessage} ${error.message.trim()}`;
+}
+
+function inspectGlbBuffer(glbBuffer: Buffer): GlbInspection {
+  const emptyInspection = {
+    imageCount: 0,
+    materialTextureCount: 0,
+    textureCount: 0,
+  };
+
+  if (glbBuffer.length < 20 || glbBuffer.toString("utf8", 0, 4) !== "glTF") {
+    return emptyInspection;
+  }
+
+  const jsonChunkLength = glbBuffer.readUInt32LE(12);
+  const jsonChunkType = glbBuffer.toString("utf8", 16, 20);
+
+  if (jsonChunkType !== "JSON" || glbBuffer.length < 20 + jsonChunkLength) {
+    return emptyInspection;
+  }
+
+  try {
+    const gltf = JSON.parse(glbBuffer.toString("utf8", 20, 20 + jsonChunkLength).trim()) as {
+      images?: unknown[];
+      materials?: Array<{
+        emissiveTexture?: unknown;
+        normalTexture?: unknown;
+        occlusionTexture?: unknown;
+        pbrMetallicRoughness?: {
+          baseColorTexture?: unknown;
+          metallicRoughnessTexture?: unknown;
+        };
+      }>;
+      textures?: unknown[];
+    };
+
+    return {
+      imageCount: gltf.images?.length ?? 0,
+      materialTextureCount: (gltf.materials ?? []).reduce((count, material) => {
+        const pbrTextureCount =
+          (material.pbrMetallicRoughness?.baseColorTexture ? 1 : 0) +
+          (material.pbrMetallicRoughness?.metallicRoughnessTexture ? 1 : 0);
+
+        return (
+          count +
+          pbrTextureCount +
+          (material.normalTexture ? 1 : 0) +
+          (material.occlusionTexture ? 1 : 0) +
+          (material.emissiveTexture ? 1 : 0)
+        );
+      }, 0),
+      textureCount: gltf.textures?.length ?? 0,
+    };
+  } catch {
+    return emptyInspection;
+  }
+}
+
+function scoreGlbInspection(inspection: GlbInspection) {
+  return inspection.materialTextureCount * 3 + inspection.textureCount * 2 + inspection.imageCount;
 }
 
 function createEmptyBoundingBox(): BoundingBox {
@@ -549,16 +625,46 @@ async function convertFbxPreview(
       };
     }
 
-    const outputFileName = `${path.basename(inspection.candidateEntryName, path.extname(inspection.candidateEntryName))}.glb`;
-    const outputGlbPath = path.join(extractionDirectory, outputFileName);
-    const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath, [...fbxConversionOptions]);
-    const glbBuffer = fs.readFileSync(convertedGlbPath);
+    const outputBaseName = path.basename(inspection.candidateEntryName, path.extname(inspection.candidateEntryName));
+    let bestConversion:
+      | {
+          attemptDescription: string;
+          glbBuffer: Buffer;
+          inspection: GlbInspection;
+          score: number;
+        }
+      | null = null;
+
+    for (const attempt of fbxConversionAttempts) {
+      const outputGlbPath = path.join(extractionDirectory, `${outputBaseName}-${attempt.fileSuffix}.glb`);
+      const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath, [...attempt.options]);
+      const glbBuffer = fs.readFileSync(convertedGlbPath);
+      const glbInspection = inspectGlbBuffer(glbBuffer);
+      const score = scoreGlbInspection(glbInspection);
+
+      if (!bestConversion || score > bestConversion.score) {
+        bestConversion = {
+          attemptDescription: attempt.description,
+          glbBuffer,
+          inspection: glbInspection,
+          score,
+        };
+      }
+
+      if (glbInspection.materialTextureCount > 0) {
+        break;
+      }
+    }
+
+    if (!bestConversion) {
+      throw new Error("FBX conversion did not produce a GLB preview.");
+    }
 
     return {
-      previewModelPath: storePreviewBuffer(glbBuffer, `${inspection.candidateEntryName}.glb`),
+      previewModelPath: storePreviewBuffer(bestConversion.glbBuffer, `${inspection.candidateEntryName}.glb`),
       sourceFormat: "fbx",
       previewConversionStatus: "success",
-      previewConversionMessage: "Converted FBX preview to GLB with PBR material extraction.",
+      previewConversionMessage: `Converted FBX preview to GLB with ${bestConversion.attemptDescription}. Detected ${bestConversion.inspection.imageCount} image(s), ${bestConversion.inspection.textureCount} texture(s), and ${bestConversion.inspection.materialTextureCount} material texture reference(s).`,
       hasMissingTextures: false,
     };
   } catch (error) {

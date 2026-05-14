@@ -358,6 +358,8 @@ pm2 status
 pm2 logs meshfree-server
 ```
 
+注意：这里是 `npm run verify:fbx-converter`，不是 `npx run verify:fbx-converter`。如果误用 `npx run`，它会尝试安装第三方 `run` 包，并把 `verify:fbx-converter` 当作文件路径执行。
+
 这套流程主要用来确认三件事：
 
 - 服务器代码已经更新到包含真实 FBX 转换策略的版本。
@@ -648,10 +650,12 @@ Server-side preview conversion for FBX files is not configured yet.
 如果 FBX 已经能打开在线预览，但只显示灰模，优先按下面方向判断：
 
 1. 管理后台确认 `previewConversionStatus` 是否是 `success`。
-2. 下载原始 ZIP，确认 FBX 是否真的带有贴图文件，或是否只包含材质名但没有贴图资源。
-3. 用 Blender、Windows 3D Viewer 或其他本地工具打开原始 FBX，确认原始文件本身是否能显示贴图。
-4. 如果原始 FBX 有贴图但线上 GLB 是灰模，说明大概率是 `FBX2glTF` 没有成功带出贴图或材质映射；当前后端会先尝试 `--pbr-metallic-roughness`，部署后需要重新上传样本验证。
-5. 如果原始 FBX 本身就是灰色材质，线上灰模属于源文件内容，不是网站预览错误。
+2. 看 `previewConversionMessage` 里的检测结果，例如 `Detected 0 image(s), 0 texture(s), and 0 material texture reference(s).`
+3. 如果这些计数都是 `0`，说明生成出来的预览 GLB 没有带出贴图，网页灰模是预期结果。
+4. 下载原始 ZIP，确认 FBX 是否真的带有贴图文件，或是否只包含材质名但没有贴图资源。
+5. 用 Blender、Windows 3D Viewer 或其他本地工具打开原始 FBX，确认原始文件本身是否能显示贴图。
+6. 如果原始 FBX 有贴图但线上 GLB 是灰模，说明大概率是 `FBX2glTF` 没有成功带出贴图或材质映射；当前后端会尝试 `--pbr-metallic-roughness` 和 `--khr-materials-unlit` 两种转换，并优先保存贴图计数更多的 GLB。
+7. 如果原始 FBX 本身就是灰色材质，线上灰模属于源文件内容，不是网站预览错误。
 
 注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 
