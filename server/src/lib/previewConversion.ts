@@ -29,6 +29,7 @@ const writeGltf = require("obj2gltf/lib/writeGltf") as (
   gltf: Record<string, unknown>,
   options: Record<string, unknown>,
 ) => Promise<Buffer | Record<string, unknown>>;
+const fbxConversionOptions = ["--pbr-metallic-roughness"];
 
 type PreviewConversionResult = {
   previewModelPath: string | null;
@@ -550,14 +551,14 @@ async function convertFbxPreview(
 
     const outputFileName = `${path.basename(inspection.candidateEntryName, path.extname(inspection.candidateEntryName))}.glb`;
     const outputGlbPath = path.join(extractionDirectory, outputFileName);
-    const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath);
+    const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath, [...fbxConversionOptions]);
     const glbBuffer = fs.readFileSync(convertedGlbPath);
 
     return {
       previewModelPath: storePreviewBuffer(glbBuffer, `${inspection.candidateEntryName}.glb`),
       sourceFormat: "fbx",
       previewConversionStatus: "success",
-      previewConversionMessage: "Converted FBX preview to GLB.",
+      previewConversionMessage: "Converted FBX preview to GLB with PBR material extraction.",
       hasMissingTextures: false,
     };
   } catch (error) {

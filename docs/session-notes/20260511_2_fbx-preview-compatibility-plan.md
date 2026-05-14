@@ -275,3 +275,67 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - 代码层最小链路已接通。
 - 是否进入进一步优化，要等真实 FBX 样本验证结果。
 
+## 11. 2026.05.13 线上真实样本反馈
+
+用户提供一条线上 FBX 投稿样本：
+
+- 审核状态：待审核。
+- 源格式：`FBX`。
+- ZIP 文件：`1778682996033-48f8d69e-3e11-4855-8f0e-558508c50549.zip`。
+- 预览转换状态：失败。
+- 在线预览开关：开启。
+- 公开状态：私有。
+- 缺失贴图：未检测到。
+- 转换说明：`Server-side preview conversion for FBX files is not configured yet.`
+
+本地核验结果：
+
+- `server npm run build` 通过。
+- `server npm run verify:fbx-converter` 通过。
+- `server npm run verify:zip-safety` 通过。
+- 当前 `server/src/lib/previewConversion.ts` 中 `previewConversionStrategies.fbx` 已指向 `convertFbxPreview`。
+- 当前 `main` 与 `origin/main` 都在 `770950b test(preview): add FBX converter check`，包含 FBX 转换链路提交。
+
+判断：
+
+- 这条线上失败文案来自旧的 pending strategy，不像是 FBX2glTF 真实转换失败。
+- 更可能是服务器运行环境还没有更新到最新代码，或更新后没有重新安装依赖、重新构建、重启 PM2。
+
+下一步建议在服务器执行：
+
+1. `cd /var/www/meshfree && git pull`
+2. `cd /var/www/meshfree/server && npm install`
+3. `npm run verify:fbx-converter`
+4. `npm run build`
+5. `pm2 restart meshfree-server`
+6. 重新上传同类 FBX ZIP 验证转换说明是否从 `not configured yet` 变为真实转换结果。
+
+## 12. 2026.05.14 FBX 灰模反馈
+
+用户确认：
+
+- 原始 FBX 在本地查看器中有贴图。
+- 网页在线预览只显示灰模。
+
+判断：
+
+- 这说明上传、格式识别、FBX 转 GLB、前端 GLB 加载的大链路已经通了。
+- 问题集中在 `FBX2glTF` 转换阶段的材质 / 贴图映射，而不是网页查看器主动把模型染灰。
+- 当前前端只加载服务器生成的单个 `.glb`，不会再从原始 ZIP 中读取贴图文件。
+- 如果转换出的 `.glb` 没有带出贴图，网页只能显示默认灰色材质。
+
+本轮先做最小修正：
+
+- `convertFbxPreview()` 调用 `fbx2gltf` 时显式增加 `--pbr-metallic-roughness`。
+- 转换成功说明改为 `Converted FBX preview to GLB with PBR material extraction.`
+
+后续验证：
+
+1. 重新部署后端。
+2. 重新上传同一个 FBX ZIP。
+3. 如果仍是灰模，保留样本继续测试：
+   - `FBX2glTF --khr-materials-unlit`
+   - Blender CLI fallback
+   - FBX SDK 方案
+4. 旧投稿不会自动重建预览，需要重新上传或后续补“重建预览”后台工具。
+

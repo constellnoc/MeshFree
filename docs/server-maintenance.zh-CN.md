@@ -336,6 +336,48 @@ pm2 status
 pm2 logs meshfree-server
 ```
 
+### 8.1 如果这次改了 FBX / 预览转换
+
+如果本次更新涉及 `FBX -> GLB`、`OBJ -> GLB`、在线预览转换、或后端新增转换依赖，不要只执行 `git pull` 和 `pm2 restart`。
+
+推荐按下面顺序执行：
+
+```bash
+cd /var/www/meshfree
+git pull
+
+cd /var/www/meshfree/server
+npm install
+npm run verify:fbx-converter
+npx prisma generate
+npx prisma migrate deploy
+npm run build
+
+pm2 restart meshfree-server
+pm2 status
+pm2 logs meshfree-server
+```
+
+这套流程主要用来确认三件事：
+
+- 服务器代码已经更新到包含真实 FBX 转换策略的版本。
+- `fbx2gltf` 依赖和 `FBX2glTF` 二进制文件在服务器上可执行。
+- PM2 已经重启，后端正在运行最新构建产物。
+
+如果线上 FBX 投稿仍显示：
+
+```text
+Server-side preview conversion for FBX files is not configured yet.
+```
+
+优先按下面顺序查：
+
+1. `cd /var/www/meshfree && git log -1 --oneline`，确认服务器代码是否已经包含 FBX 转换提交。
+2. `cd /var/www/meshfree/server && npm run verify:fbx-converter`，确认转换器是否可执行。
+3. `npm run build`，确认后端构建是否成功。
+4. `pm2 restart meshfree-server`，确认运行进程已加载新代码。
+5. 重新上传同类 FBX ZIP 验证，不要只看旧投稿记录；旧投稿不会自动重建预览。
+
 ---
 
 ## 9. 日常最常用命令
@@ -592,6 +634,26 @@ pm2 logs meshfree-server
 - `GET /api/models/:id/cover` 是否能返回公开封面
 - `GET /api/models/:id/preview` 是否能返回公开预览
 - `/uploads/...` 返回 404 是预期行为，不应改回静态公开
+
+### 13.5 FBX 在线预览异常
+
+如果后台看到 FBX 投稿的转换说明是：
+
+```text
+Server-side preview conversion for FBX files is not configured yet.
+```
+
+这通常不是模型文件本身坏了，而是服务器还在运行旧代码，或更新后没有重新安装依赖、重新构建、重启 PM2。按 `8.1` 的 FBX / 预览转换专项流程处理。
+
+如果 FBX 已经能打开在线预览，但只显示灰模，优先按下面方向判断：
+
+1. 管理后台确认 `previewConversionStatus` 是否是 `success`。
+2. 下载原始 ZIP，确认 FBX 是否真的带有贴图文件，或是否只包含材质名但没有贴图资源。
+3. 用 Blender、Windows 3D Viewer 或其他本地工具打开原始 FBX，确认原始文件本身是否能显示贴图。
+4. 如果原始 FBX 有贴图但线上 GLB 是灰模，说明大概率是 `FBX2glTF` 没有成功带出贴图或材质映射；当前后端会先尝试 `--pbr-metallic-roughness`，部署后需要重新上传样本验证。
+5. 如果原始 FBX 本身就是灰色材质，线上灰模属于源文件内容，不是网站预览错误。
+
+注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 
 ---
 
