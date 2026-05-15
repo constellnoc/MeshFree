@@ -352,6 +352,22 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - 如果重新上传后检测计数仍全是 `0`，说明 `FBX2glTF` 没有从这个 FBX 样本带出贴图。
 - 这种情况下继续调参数的收益会变低，应进入 Blender CLI fallback 或 FBX SDK 对照测试。
 
+2026.05.15 继续排查：
+
+- 用户已在服务器完成 `git pull`、`npm install`、`npm run verify:fbx-converter`、`prisma generate`、`prisma migrate deploy`、后端构建、前端构建、`pm2 restart`、`nginx -t`、`nginx reload`。
+- 重新验证后仍然灰模。
+- 后端 FBX 转换逻辑继续调整：
+  - 不再因为第一种策略有贴图引用就提前停止。
+  - `--pbr-metallic-roughness` 和 `--khr-materials-unlit` 都会尝试。
+  - 单个策略失败不会立刻中断整体转换。
+  - `previewConversionMessage` 会写出每种策略各自检测到的 image / texture / material texture reference 计数。
+
+下一次线上验证重点：
+
+- 重新上传同一个 FBX ZIP。
+- 在后台查看转换说明。
+- 如果两种策略都是 `0 image(s), 0 texture(s), 0 material texture reference(s)`，即可判定当前 `FBX2glTF` 路线无法带出这个样本贴图，应转 Blender fallback。
+
 后续验证：
 
 1. 重新部署后端。

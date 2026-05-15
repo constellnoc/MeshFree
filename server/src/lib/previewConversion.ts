@@ -626,6 +626,7 @@ async function convertFbxPreview(
     }
 
     const outputBaseName = path.basename(inspection.candidateEntryName, path.extname(inspection.candidateEntryName));
+    const conversionSummaries: string[] = [];
     let bestConversion:
       | {
           attemptDescription: string;
@@ -634,37 +635,43 @@ async function convertFbxPreview(
           score: number;
         }
       | null = null;
+    let lastConversionError: unknown = null;
 
     for (const attempt of fbxConversionAttempts) {
       const outputGlbPath = path.join(extractionDirectory, `${outputBaseName}-${attempt.fileSuffix}.glb`);
-      const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath, [...attempt.options]);
-      const glbBuffer = fs.readFileSync(convertedGlbPath);
-      const glbInspection = inspectGlbBuffer(glbBuffer);
-      const score = scoreGlbInspection(glbInspection);
 
-      if (!bestConversion || score > bestConversion.score) {
-        bestConversion = {
-          attemptDescription: attempt.description,
-          glbBuffer,
-          inspection: glbInspection,
-          score,
-        };
-      }
+      try {
+        const convertedGlbPath = await fbx2gltf(absoluteFbxPath, outputGlbPath, [...attempt.options]);
+        const glbBuffer = fs.readFileSync(convertedGlbPath);
+        const glbInspection = inspectGlbBuffer(glbBuffer);
+        const score = scoreGlbInspection(glbInspection);
+        conversionSummaries.push(
+          `${attempt.description}: ${glbInspection.imageCount} image(s), ${glbInspection.textureCount} texture(s), ${glbInspection.materialTextureCount} material texture reference(s)`,
+        );
 
-      if (glbInspection.materialTextureCount > 0) {
-        break;
+        if (!bestConversion || score > bestConversion.score) {
+          bestConversion = {
+            attemptDescription: attempt.description,
+            glbBuffer,
+            inspection: glbInspection,
+            score,
+          };
+        }
+      } catch (error) {
+        lastConversionError = error;
+        conversionSummaries.push(`${attempt.description}: failed`);
       }
     }
 
     if (!bestConversion) {
-      throw new Error("FBX conversion did not produce a GLB preview.");
+      throw lastConversionError instanceof Error ? lastConversionError : new Error("FBX conversion did not produce a GLB preview.");
     }
 
     return {
       previewModelPath: storePreviewBuffer(bestConversion.glbBuffer, `${inspection.candidateEntryName}.glb`),
       sourceFormat: "fbx",
       previewConversionStatus: "success",
-      previewConversionMessage: `Converted FBX preview to GLB with ${bestConversion.attemptDescription}. Detected ${bestConversion.inspection.imageCount} image(s), ${bestConversion.inspection.textureCount} texture(s), and ${bestConversion.inspection.materialTextureCount} material texture reference(s).`,
+      previewConversionMessage: `Converted FBX preview to GLB with ${bestConversion.attemptDescription}. Selected result detected ${bestConversion.inspection.imageCount} image(s), ${bestConversion.inspection.textureCount} texture(s), and ${bestConversion.inspection.materialTextureCount} material texture reference(s). Attempts: ${conversionSummaries.join("; ")}.`,
       hasMissingTextures: false,
     };
   } catch (error) {

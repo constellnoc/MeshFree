@@ -654,8 +654,10 @@ Server-side preview conversion for FBX files is not configured yet.
 3. 如果这些计数都是 `0`，说明生成出来的预览 GLB 没有带出贴图，网页灰模是预期结果。
 4. 下载原始 ZIP，确认 FBX 是否真的带有贴图文件，或是否只包含材质名但没有贴图资源。
 5. 用 Blender、Windows 3D Viewer 或其他本地工具打开原始 FBX，确认原始文件本身是否能显示贴图。
-6. 如果原始 FBX 有贴图但线上 GLB 是灰模，说明大概率是 `FBX2glTF` 没有成功带出贴图或材质映射；当前后端会尝试 `--pbr-metallic-roughness` 和 `--khr-materials-unlit` 两种转换，并优先保存贴图计数更多的 GLB。
+6. 如果原始 FBX 有贴图但线上 GLB 是灰模，说明大概率是 `FBX2glTF` 没有成功带出贴图或材质映射；当前后端会尝试 `--pbr-metallic-roughness` 和 `--khr-materials-unlit` 两种转换，并在转换说明里分别列出两种策略检测到的贴图计数。
 7. 如果原始 FBX 本身就是灰色材质，线上灰模属于源文件内容，不是网站预览错误。
+
+如果两种策略都是 `0 image(s), 0 texture(s), 0 material texture reference(s)`，不要继续反复部署同一套 `FBX2glTF` 参数，下一步应评估 Blender CLI fallback。
 
 注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 
