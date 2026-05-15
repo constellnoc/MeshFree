@@ -368,13 +368,27 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - 在后台查看转换说明。
 - 如果两种策略都是 `0 image(s), 0 texture(s), 0 material texture reference(s)`，即可判定当前 `FBX2glTF` 路线无法带出这个样本贴图，应转 Blender fallback。
 
+2026.05.15 线上诊断结果：
+
+- 新上传样本：`1778807836736-3437e888-21e9-4b93-9fef-c9caa5d825ba.zip`。
+- 转换成功，但诊断结果为：
+  - `PBR material extraction: 0 image(s), 0 texture(s), 0 material texture reference(s)`
+  - `unlit material extraction: 0 image(s), 0 texture(s), 0 material texture reference(s)`
+- 结论：对该真实样本，`FBX2glTF` 路线能生成几何 GLB，但无法带出贴图 / 材质贴图引用。
+
+本轮继续调整：
+
+- 在 `FBX2glTF` 结果贴图计数为 `0` 时，尝试 Blender CLI fallback。
+- Blender 成功时同样解析输出 GLB 的 image / texture / material texture reference 计数。
+- 如果服务器没安装 Blender，转换说明会记录 `Blender fallback: failed (...)`，投稿仍不失败。
+- 服务器可用 `BLENDER_BINARY` 或 `BLENDER_PATH` 指定 Blender 可执行文件路径。
+
 后续验证：
 
 1. 重新部署后端。
-2. 重新上传同一个 FBX ZIP。
-3. 如果仍是灰模，保留样本继续测试：
-   - `FBX2glTF --khr-materials-unlit`
-   - Blender CLI fallback
-   - FBX SDK 方案
-4. 旧投稿不会自动重建预览，需要重新上传或后续补“重建预览”后台工具。
+2. 在服务器确认 `blender --version` 可执行；如不可执行，安装 Blender 或配置 `BLENDER_BINARY`。
+3. 重新上传同一个 FBX ZIP。
+4. 查看转换说明中的 `Blender fallback` 计数。
+5. 如果 Blender fallback 仍然是 `0/0/0`，再评估 FBX SDK 或人工导出 GLB。
+6. 旧投稿不会自动重建预览，需要重新上传或后续补“重建预览”后台工具。
 

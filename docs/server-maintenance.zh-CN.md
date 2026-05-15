@@ -657,7 +657,28 @@ Server-side preview conversion for FBX files is not configured yet.
 6. 如果原始 FBX 有贴图但线上 GLB 是灰模，说明大概率是 `FBX2glTF` 没有成功带出贴图或材质映射；当前后端会尝试 `--pbr-metallic-roughness` 和 `--khr-materials-unlit` 两种转换，并在转换说明里分别列出两种策略检测到的贴图计数。
 7. 如果原始 FBX 本身就是灰色材质，线上灰模属于源文件内容，不是网站预览错误。
 
-如果两种策略都是 `0 image(s), 0 texture(s), 0 material texture reference(s)`，不要继续反复部署同一套 `FBX2glTF` 参数，下一步应评估 Blender CLI fallback。
+如果两种策略都是 `0 image(s), 0 texture(s), 0 material texture reference(s)`，不要继续反复部署同一套 `FBX2glTF` 参数，下一步应使用 Blender CLI fallback。
+
+Blender fallback 依赖服务器能执行 `blender` 命令。先检查：
+
+```bash
+blender --version
+```
+
+如果提示找不到命令，可以先安装：
+
+```bash
+sudo apt update
+sudo apt install -y blender
+```
+
+如果服务器上的 Blender 不在默认 PATH，可以在 PM2 环境中设置：
+
+```bash
+BLENDER_BINARY="/path/to/blender"
+```
+
+部署包含 Blender fallback 的后端后，重新上传同一个 FBX ZIP。转换说明里应出现 `Blender fallback` 这一段。
 
 注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 

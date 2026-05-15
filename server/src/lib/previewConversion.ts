@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { spawn } from "child_process";
 
 import {
   extractZipArchiveToDirectory,
@@ -174,6 +175,59 @@ function inspectGlbBuffer(glbBuffer: Buffer): GlbInspection {
 
 function scoreGlbInspection(inspection: GlbInspection) {
   return inspection.materialTextureCount * 3 + inspection.textureCount * 2 + inspection.imageCount;
+}
+
+function formatAttemptError(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message ? message.slice(0, 240) : "unknown error";
+}
+
+function runCommand(command: string, args: string[], workingDirectory: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: workingDirectory,
+      windowsHide: true,
+    });
+    let output = "";
+
+    child.stdout.on("data", (data: Buffer) => {
+      output += data.toString();
+    });
+    child.stderr.on("data", (data: Buffer) => {
+      output += data.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(output.trim() || `${command} exited with status ${code}.`));
+    });
+  });
+}
+
+async function convertFbxWithBlender(absoluteFbxPath: string, outputGlbPath: string, workingDirectory: string) {
+  const blenderBinary = process.env.BLENDER_BINARY || process.env.BLENDER_PATH || "blender";
+  const scriptPath = path.join(workingDirectory, "meshfree-blender-fbx-to-glb.py");
+  const script = `
+import bpy
+import sys
+
+args = sys.argv[sys.argv.index("--") + 1:]
+input_path = args[0]
+output_path = args[1]
+
+bpy.ops.object.select_all(action="SELECT")
+bpy.ops.object.delete()
+bpy.ops.import_scene.fbx(filepath=input_path)
+bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB", export_image_format="AUTO")
+`;
+
+  fs.writeFileSync(scriptPath, script, "utf8");
+  await runCommand(blenderBinary, ["--background", "--python", scriptPath, "--", absoluteFbxPath, outputGlbPath], workingDirectory);
+  return outputGlbPath;
 }
 
 function createEmptyBoundingBox(): BoundingBox {
@@ -659,7 +713,34 @@ async function convertFbxPreview(
         }
       } catch (error) {
         lastConversionError = error;
-        conversionSummaries.push(`${attempt.description}: failed`);
+        conversionSummaries.push(`${attempt.description}: failed (${formatAttemptError(error)})`);
+      }
+    }
+
+    if (!bestConversion || bestConversion.score === 0) {
+      const blenderOutputGlbPath = path.join(extractionDirectory, `${outputBaseName}-blender.glb`);
+
+      try {
+        const convertedGlbPath = await convertFbxWithBlender(absoluteFbxPath, blenderOutputGlbPath, extractionDirectory);
+        const glbBuffer = fs.readFileSync(convertedGlbPath);
+        const glbInspection = inspectGlbBuffer(glbBuffer);
+        const score = scoreGlbInspection(glbInspection);
+
+        conversionSummaries.push(
+          `Blender fallback: ${glbInspection.imageCount} image(s), ${glbInspection.textureCount} texture(s), ${glbInspection.materialTextureCount} material texture reference(s)`,
+        );
+
+        if (!bestConversion || score > bestConversion.score) {
+          bestConversion = {
+            attemptDescription: "Blender fallback",
+            glbBuffer,
+            inspection: glbInspection,
+            score,
+          };
+        }
+      } catch (error) {
+        lastConversionError = error;
+        conversionSummaries.push(`Blender fallback: failed (${formatAttemptError(error)})`);
       }
     }
 
