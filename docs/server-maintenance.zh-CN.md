@@ -680,6 +680,25 @@ BLENDER_BINARY="/path/to/blender"
 
 部署包含 Blender fallback 的后端后，重新上传同一个 FBX ZIP。转换说明里应出现 `Blender fallback` 这一段。
 
+为了避免反复网页上传，可以先直接对服务器上的 ZIP 跑诊断：
+
+```bash
+cd /var/www/meshfree/server
+npm run diagnose:preview -- 1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip
+```
+
+也可以传完整相对路径：
+
+```bash
+npm run diagnose:preview -- models/1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip
+```
+
+这个命令会走完整预览转换链路，并在终端打印 `previewConversionMessage`。默认会删除诊断过程中生成的预览 GLB，避免污染线上上传目录。如果需要保留生成的预览文件，可以加：
+
+```bash
+npm run diagnose:preview -- models/xxx.zip --keep-preview
+```
+
 如果转换说明出现类似：
 
 ```text
@@ -687,6 +706,8 @@ Blender fallback: failed (ENOENT: no such file or directory, open '...-blender.g
 ```
 
 说明后端已经调用了 Blender fallback，但 Blender 没有生成目标 GLB。继续部署最新诊断版后端，再重新上传一次；新说明会带上 Blender 输出尾部日志，用来判断是 FBX 导入失败、场景为空，还是 GLB 导出失败。
+
+如果日志里出现 `/usr/share/blender/scripts/addons/io_scene_gltf2`，说明 Blender 已经进入 glTF 导出插件，但导出插件内部报错。此时需要继续看更完整的 traceback，而不是只看前几行。
 
 注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 

@@ -179,7 +179,7 @@ function scoreGlbInspection(inspection: GlbInspection) {
 
 function formatAttemptError(error: unknown) {
   const message = error instanceof Error ? error.message.trim() : "";
-  return message ? message.slice(0, 240) : "unknown error";
+  return message ? message.slice(0, 2000) : "unknown error";
 }
 
 function runCommand(command: string, args: string[], workingDirectory: string): Promise<string> {
@@ -221,12 +221,13 @@ output_path = args[1]
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
+bpy.ops.preferences.addon_enable(module="io_scene_gltf2")
 bpy.ops.import_scene.fbx(filepath=input_path)
 
 if len(bpy.context.scene.objects) == 0:
     raise RuntimeError("Blender imported the FBX but found no scene objects.")
 
-bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB", export_image_format="AUTO")
+bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB")
 `;
 
   fs.writeFileSync(scriptPath, script, "utf8");

@@ -10,6 +10,7 @@
     "db:seed": "prisma db seed",
     "admin:manage": "ts-node src/scripts/manageAdmin.ts",
     "demo:public-models": "ts-node src/scripts/setupDemoPublicModels.ts",
+    "diagnose:preview": "ts-node src/scripts/diagnosePreviewConversion.ts",
     "verify:fbx-converter": "ts-node src/scripts/verifyFbxConverter.ts",
     "verify:zip-safety": "ts-node src/scripts/verifyZipSafety.ts",
     "test": "echo \"Error: no test specified\" && exit 1"

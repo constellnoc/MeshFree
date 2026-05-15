@@ -403,6 +403,29 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - 如果 Blender 没生成 GLB，转换说明会带上 Blender 输出尾部日志。
 - Blender 脚本补充检查：如果导入 FBX 后场景对象数为 `0`，直接抛出明确错误。
 
+2026.05.15 Blender fallback 第二次线上结果：
+
+- 新上传样本：`1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip`。
+- `FBX2glTF` 两种策略仍为 `0/0/0`。
+- Blender fallback 进入 glTF 导出阶段，但失败日志被旧的 240 字符截断：
+  - `File "/usr/share/blender/scripts/addons/io_scene_gltf2/__init__.py", line 512, in execute ...`
+
+继续修正：
+
+- Blender 错误日志截断从 `240` 字符放大到 `2000` 字符。
+- Blender 脚本显式启用 `io_scene_gltf2` 插件。
+- 暂时移除 `export_image_format="AUTO"`，避免 Blender 3.0.1 的 glTF 导出参数兼容问题。
+
+诊断流程改进：
+
+- 新增 `server npm run diagnose:preview -- <zip>`。
+- 可直接对服务器已有 ZIP 跑完整预览转换链路，不必每次通过网页重新上传。
+- 默认删除诊断生成的预览 GLB；可用 `--keep-preview` 保留。
+- 支持传：
+  - 上传文件名，例如 `1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip`
+  - 相对路径，例如 `models/1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip`
+  - 绝对路径。
+
 后续验证：
 
 1. 重新部署后端。
