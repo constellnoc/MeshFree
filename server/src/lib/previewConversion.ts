@@ -213,11 +213,71 @@ async function convertFbxWithBlender(absoluteFbxPath: string, outputGlbPath: str
   const scriptPath = path.join(workingDirectory, "meshfree-blender-fbx-to-glb.py");
   const script = `
 import bpy
+import os
 import sys
 
 args = sys.argv[sys.argv.index("--") + 1:]
 input_path = args[0]
 output_path = args[1]
+search_root = os.path.dirname(os.path.dirname(input_path))
+texture_extensions = {".bmp", ".jpeg", ".jpg", ".png", ".tga", ".tif", ".tiff", ".webp"}
+
+def find_texture_images(root):
+    images = []
+    for current_root, _dirs, files in os.walk(root):
+        for name in files:
+            if os.path.splitext(name)[1].lower() in texture_extensions:
+                images.append(os.path.join(current_root, name))
+    return images
+
+def pick_texture(paths, keywords):
+    for path in paths:
+        lower_name = os.path.basename(path).lower()
+        if any(keyword in lower_name for keyword in keywords):
+            return path
+    return paths[0] if paths else None
+
+def ensure_principled_bsdf(material):
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    for node in nodes:
+        if node.type == "BSDF_PRINCIPLED":
+            return node
+    return nodes.new(type="ShaderNodeBsdfPrincipled")
+
+def link_image_to_socket(material, image_path, socket_name):
+    if not image_path:
+        return False
+
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    principled = ensure_principled_bsdf(material)
+    socket = principled.inputs.get(socket_name)
+
+    if socket is None:
+        return False
+
+    image = bpy.data.images.load(image_path, check_existing=True)
+    image_node = nodes.new(type="ShaderNodeTexImage")
+    image_node.image = image
+    links.new(image_node.outputs["Color"], socket)
+    return True
+
+def attach_fallback_textures(texture_paths):
+    base_color_path = pick_texture(texture_paths, ["basecolor", "base_color", "bc", "diffuse", "albedo", "color"])
+    alpha_path = pick_texture(texture_paths, ["opacity", "alpha"])
+    linked_count = 0
+
+    for material in bpy.data.materials:
+        if link_image_to_socket(material, base_color_path, "Base Color"):
+            linked_count += 1
+        if alpha_path and link_image_to_socket(material, alpha_path, "Alpha"):
+            material.blend_method = "BLEND"
+            material.use_screen_refraction = True
+            linked_count += 1
+
+    return linked_count
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
@@ -226,6 +286,11 @@ bpy.ops.import_scene.fbx(filepath=input_path)
 
 if len(bpy.context.scene.objects) == 0:
     raise RuntimeError("Blender imported the FBX but found no scene objects.")
+
+texture_paths = find_texture_images(search_root)
+linked_texture_count = attach_fallback_textures(texture_paths)
+print("meshfree_texture_file_count:", len(texture_paths))
+print("meshfree_linked_texture_count:", linked_texture_count)
 
 bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB")
 `;

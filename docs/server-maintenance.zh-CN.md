@@ -709,6 +709,33 @@ Blender fallback: failed (ENOENT: no such file or directory, open '...-blender.g
 
 如果日志里出现 `/usr/share/blender/scripts/addons/io_scene_gltf2`，说明 Blender 已经进入 glTF 导出插件，但导出插件内部报错。此时需要继续看更完整的 traceback，而不是只看前几行。
 
+如果完整 traceback 出现：
+
+```text
+ModuleNotFoundError: No module named 'numpy'
+```
+
+说明 Blender 的 glTF 导出插件缺少 Python 依赖。先安装：
+
+```bash
+sudo apt install -y python3-numpy
+```
+
+安装后验证 Blender 自己能导入 numpy：
+
+```bash
+blender --background --python-expr "import numpy as np; print(np.__version__)"
+```
+
+如果这一步通过，再重新跑 `npm run diagnose:preview -- models/xxx.zip`。
+
+如果 Blender fallback 能成功导出 GLB，但仍显示 `0 image(s), 0 texture(s), 0 material texture reference(s)`，说明 Blender 导入 FBX 时没有从 FBX 材质里自动恢复贴图引用。当前后端会在 Blender 导入后主动扫描 ZIP 解压目录里的图片，并按文件名尝试挂接：
+
+- `basecolor / base_color / bc / diffuse / albedo / color` -> `Base Color`
+- `opacity / alpha` -> `Alpha`
+
+部署该版本后继续用 `npm run diagnose:preview -- models/xxx.zip` 测，不需要重新网页上传。
+
 注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 
 ---

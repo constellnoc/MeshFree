@@ -426,6 +426,43 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
   - 相对路径，例如 `models/1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip`
   - 绝对路径。
 
+2026.05.15 Blender 手动诊断结果：
+
+- 目标 ZIP 中确认存在贴图：
+  - `textures/Cat_BC.png`
+  - `textures/Cat_Opacity.png`
+- Blender 成功导入 FBX：
+  - `FBX version: 7500`
+  - `scene_object_count: 75`
+- Blender glTF 导出失败的真实原因：
+  - `ModuleNotFoundError: No module named 'numpy'`
+- `libextern_draco.so does not exist` 只是 Draco 压缩库提示，当前未启用 Draco，不是本次失败主因。
+
+当前判断：
+
+- 该样本并非没有贴图。
+- Blender 能读入 FBX 场景。
+- 服务器 Blender 环境缺少 glTF 导出插件依赖 `numpy`，需要先补系统依赖再测。
+
+2026.05.15 numpy 修复后诊断结果：
+
+- 服务器安装 `python3-numpy` 后，Blender 可导入 numpy：
+  - `1.21.5`
+- `npm run diagnose:preview -- models/1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip` 可跑通 Blender fallback。
+- 但 Blender fallback 导出的 GLB 仍为：
+  - `0 image(s), 0 texture(s), 0 material texture reference(s)`
+
+继续修正：
+
+- Blender fallback 不再只依赖 FBX 内部材质引用。
+- 导入 FBX 后主动扫描 ZIP 解压目录内的图片文件。
+- 按文件名启发式挂接贴图：
+  - `basecolor / base_color / bc / diffuse / albedo / color` -> `Base Color`
+  - `opacity / alpha` -> `Alpha`
+- 导出前打印：
+  - `meshfree_texture_file_count`
+  - `meshfree_linked_texture_count`
+
 后续验证：
 
 1. 重新部署后端。
