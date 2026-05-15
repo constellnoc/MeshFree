@@ -680,6 +680,14 @@ BLENDER_BINARY="/path/to/blender"
 
 部署包含 Blender fallback 的后端后，重新上传同一个 FBX ZIP。转换说明里应出现 `Blender fallback` 这一段。
 
+如果转换说明出现类似：
+
+```text
+Blender fallback: failed (ENOENT: no such file or directory, open '...-blender.glb')
+```
+
+说明后端已经调用了 Blender fallback，但 Blender 没有生成目标 GLB。继续部署最新诊断版后端，再重新上传一次；新说明会带上 Blender 输出尾部日志，用来判断是 FBX 导入失败、场景为空，还是 GLB 导出失败。
+
 注意：旧投稿不会自动重建预览。修正转换参数后，必须重新上传同一个 FBX ZIP，或后续补“重建预览”后台工具。
 
 ---

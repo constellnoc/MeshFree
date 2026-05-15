@@ -383,6 +383,26 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 - 如果服务器没安装 Blender，转换说明会记录 `Blender fallback: failed (...)`，投稿仍不失败。
 - 服务器可用 `BLENDER_BINARY` 或 `BLENDER_PATH` 指定 Blender 可执行文件路径。
 
+2026.05.15 Blender fallback 首次线上结果：
+
+- 新上传样本：`1778808837995-40e96fc7-8c02-4209-91c9-3de9c66f6eab.zip`。
+- `FBX2glTF` 两种策略仍为 `0/0/0`。
+- Blender fallback 被调用，但失败：
+  - `ENOENT: no such file or directory, open '/tmp/meshfree-preview-.../LowPoly_Cat_V04-blender.glb'`
+
+判断：
+
+- 后端已经进入 Blender fallback 分支。
+- 失败点不是“找不到 blender 命令”，而是 Blender 命令执行后没有生成目标 GLB 文件。
+- 旧代码没有保存 Blender stdout / stderr，导致看不到 Blender 未产出文件的真实原因。
+
+继续修正：
+
+- `runCommand()` 改为返回 stdout / stderr。
+- `convertFbxWithBlender()` 在命令成功后检查输出 GLB 是否存在。
+- 如果 Blender 没生成 GLB，转换说明会带上 Blender 输出尾部日志。
+- Blender 脚本补充检查：如果导入 FBX 后场景对象数为 `0`，直接抛出明确错误。
+
 后续验证：
 
 1. 重新部署后端。

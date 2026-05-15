@@ -182,7 +182,7 @@ function formatAttemptError(error: unknown) {
   return message ? message.slice(0, 240) : "unknown error";
 }
 
-function runCommand(command: string, args: string[], workingDirectory: string): Promise<void> {
+function runCommand(command: string, args: string[], workingDirectory: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: workingDirectory,
@@ -199,7 +199,7 @@ function runCommand(command: string, args: string[], workingDirectory: string): 
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) {
-        resolve();
+        resolve(output);
         return;
       }
 
@@ -222,11 +222,20 @@ output_path = args[1]
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
 bpy.ops.import_scene.fbx(filepath=input_path)
+
+if len(bpy.context.scene.objects) == 0:
+    raise RuntimeError("Blender imported the FBX but found no scene objects.")
+
 bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB", export_image_format="AUTO")
 `;
 
   fs.writeFileSync(scriptPath, script, "utf8");
-  await runCommand(blenderBinary, ["--background", "--python", scriptPath, "--", absoluteFbxPath, outputGlbPath], workingDirectory);
+  const output = await runCommand(blenderBinary, ["--background", "--python", scriptPath, "--", absoluteFbxPath, outputGlbPath], workingDirectory);
+
+  if (!fs.existsSync(outputGlbPath)) {
+    throw new Error(`Blender did not create the GLB output. ${output.trim().slice(-1000)}`);
+  }
+
   return outputGlbPath;
 }
 
