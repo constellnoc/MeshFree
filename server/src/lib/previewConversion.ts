@@ -298,6 +298,7 @@ search_root = args[2]
 texture_extensions = {".bmp", ".jpeg", ".jpg", ".png", ".tga", ".tif", ".tiff", ".webp"}
 generated_texture_dir = os.path.dirname(output_path)
 combined_texture_cache = {}
+should_blend_alpha_textures = os.environ.get("PREVIEW_BLEND_ALPHA_TEXTURES") == "1"
 
 role_keywords = {
     "baseColor": ["basecolor", "base", "bc", "diffuse", "diff", "albedo", "color", "colour", "col"],
@@ -529,7 +530,7 @@ def attach_fallback_textures(texture_paths):
         alpha_output_name = "Color"
         alpha_color_space = "Non-Color"
 
-        if base_color_path and alpha_path:
+        if should_blend_alpha_textures and base_color_path and alpha_path:
             combined_base_color_path = create_base_alpha_texture(base_color_path, alpha_path)
             if combined_base_color_path != base_color_path:
                 base_color_path = combined_base_color_path
