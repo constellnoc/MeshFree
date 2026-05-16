@@ -472,3 +472,39 @@ FBX 转换可能比 OBJ 更耗时、更耗内存。
 5. 如果 Blender fallback 仍然是 `0/0/0`，再评估 FBX SDK 或人工导出 GLB。
 6. 旧投稿不会自动重建预览，需要重新上传或后续补“重建预览”后台工具。
 
+## 13. 2026.05.15 对话收口记录
+
+本轮最终进展：
+
+- 已确认真实样本 ZIP 内存在贴图：
+  - `textures/Cat_BC.png`
+  - `textures/Cat_Opacity.png`
+- `FBX2glTF` 两种策略都无法带出贴图：
+  - `--pbr-metallic-roughness` -> `0 image(s), 0 texture(s), 0 material texture reference(s)`
+  - `--khr-materials-unlit` -> `0 image(s), 0 texture(s), 0 material texture reference(s)`
+- 已在服务器安装 Blender 和 `python3-numpy`，修复 Blender glTF 导出插件缺 `numpy` 的问题。
+- 已新增 `server npm run diagnose:preview -- <zip>`，可以直接对服务器已有 ZIP 诊断，不必反复网页上传。
+- 已给 Blender fallback 增加主动贴图挂接：
+  - 扫描 ZIP 解压目录图片。
+  - 将 `BC / basecolor / diffuse / albedo / color` 类贴图接到 `Base Color`。
+  - 将 `opacity / alpha` 类贴图接到 `Alpha`。
+- 诊断脚本最新结果显示 Blender fallback 已能生成带贴图引用的 GLB：
+  - `Blender fallback: 1 image(s), 1 texture(s), 1 material texture reference(s)`
+
+但本轮不能记为成功：
+
+- 用户确认整体仍未成功。
+- 具体失败表现和原因将在新对话继续说明。
+
+下一轮应从这里继续：
+
+1. 不要再从 `FBX2glTF` 参数开始排查；该路线对这个样本贴图已确认无效。
+2. 先基于最新 Blender fallback 输出的 GLB 继续分析为什么“带 1 个贴图引用”仍没有达到预期效果。
+3. 优先核对：
+   - Blender fallback 是否只挂上了 `Cat_BC.png`，但透明 / 眼睛 / 多材质等仍缺失。
+   - 前端 viewer 是否正确显示该 GLB 的 base color texture。
+   - 需要保留诊断 GLB 用外部查看器对比，命令为：
+     - `npm run diagnose:preview -- models/1778809274994-03651246-0af4-43cd-b6af-6a1763599c9f.zip --keep-preview`
+4. 若 GLB 在外部查看器正常、网页异常，再转前端 viewer 排查。
+5. 若 GLB 在外部查看器也不正常，继续改 Blender fallback 的材质挂接策略。
+

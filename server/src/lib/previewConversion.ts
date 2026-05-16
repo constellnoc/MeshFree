@@ -88,7 +88,10 @@ type ObjGltfMaterial = {
 };
 
 type GlbInspection = {
+  alphaMaterialCount: number;
+  doubleSidedMaterialCount: number;
   imageCount: number;
+  materialCount: number;
   materialTextureCount: number;
   textureCount: number;
 };
@@ -120,7 +123,10 @@ function formatConversionErrorMessage(sourceFormat: Exclude<ConfiguredSourceForm
 
 function inspectGlbBuffer(glbBuffer: Buffer): GlbInspection {
   const emptyInspection = {
+    alphaMaterialCount: 0,
+    doubleSidedMaterialCount: 0,
     imageCount: 0,
+    materialCount: 0,
     materialTextureCount: 0,
     textureCount: 0,
   };
@@ -140,6 +146,8 @@ function inspectGlbBuffer(glbBuffer: Buffer): GlbInspection {
     const gltf = JSON.parse(glbBuffer.toString("utf8", 20, 20 + jsonChunkLength).trim()) as {
       images?: unknown[];
       materials?: Array<{
+        alphaMode?: string;
+        doubleSided?: boolean;
         emissiveTexture?: unknown;
         normalTexture?: unknown;
         occlusionTexture?: unknown;
@@ -152,7 +160,10 @@ function inspectGlbBuffer(glbBuffer: Buffer): GlbInspection {
     };
 
     return {
+      alphaMaterialCount: (gltf.materials ?? []).filter((material) => material.alphaMode === "BLEND" || material.alphaMode === "MASK").length,
+      doubleSidedMaterialCount: (gltf.materials ?? []).filter((material) => material.doubleSided).length,
       imageCount: gltf.images?.length ?? 0,
+      materialCount: gltf.materials?.length ?? 0,
       materialTextureCount: (gltf.materials ?? []).reduce((count, material) => {
         const pbrTextureCount =
           (material.pbrMetallicRoughness?.baseColorTexture ? 1 : 0) +
@@ -174,7 +185,17 @@ function inspectGlbBuffer(glbBuffer: Buffer): GlbInspection {
 }
 
 function scoreGlbInspection(inspection: GlbInspection) {
-  return inspection.materialTextureCount * 3 + inspection.textureCount * 2 + inspection.imageCount;
+  return (
+    inspection.materialTextureCount * 3 +
+    inspection.textureCount * 2 +
+    inspection.imageCount +
+    inspection.alphaMaterialCount +
+    inspection.doubleSidedMaterialCount
+  );
+}
+
+function formatGlbInspection(inspection: GlbInspection) {
+  return `${inspection.imageCount} image(s), ${inspection.textureCount} texture(s), ${inspection.materialTextureCount} material texture reference(s), ${inspection.alphaMaterialCount} alpha material(s), ${inspection.doubleSidedMaterialCount} double-sided material(s)`;
 }
 
 function formatAttemptError(error: unknown) {
@@ -208,19 +229,68 @@ function runCommand(command: string, args: string[], workingDirectory: string): 
   });
 }
 
-async function convertFbxWithBlender(absoluteFbxPath: string, outputGlbPath: string, workingDirectory: string) {
+type BlenderConversionResult = {
+  diagnostics: string;
+  outputPath: string;
+};
+
+function extractBlenderDiagnostics(output: string) {
+  const diagnostics = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("meshfree_"))
+    .join("; ");
+
+  return diagnostics.length > 1800 ? `${diagnostics.slice(0, 1800)}...` : diagnostics;
+}
+
+function shouldTryBlenderFallback(bestConversion: { inspection: GlbInspection } | null) {
+  if (!bestConversion) {
+    return true;
+  }
+
+  // FBX2glTF can produce geometry with only partial or wrong material links.
+  // Let Blender compete when the material signal is still very weak.
+  return bestConversion.inspection.imageCount <= 1 || bestConversion.inspection.materialTextureCount <= 1;
+}
+
+async function convertFbxWithBlender(absoluteFbxPath: string, outputGlbPath: string, workingDirectory: string): Promise<BlenderConversionResult> {
   const blenderBinary = process.env.BLENDER_BINARY || process.env.BLENDER_PATH || "blender";
   const scriptPath = path.join(workingDirectory, "meshfree-blender-fbx-to-glb.py");
   const script = `
 import bpy
 import os
+import re
 import sys
 
 args = sys.argv[sys.argv.index("--") + 1:]
 input_path = args[0]
 output_path = args[1]
-search_root = os.path.dirname(os.path.dirname(input_path))
+search_root = args[2]
 texture_extensions = {".bmp", ".jpeg", ".jpg", ".png", ".tga", ".tif", ".tiff", ".webp"}
+generated_texture_dir = os.path.dirname(output_path)
+
+role_keywords = {
+    "baseColor": ["basecolor", "base", "bc", "diffuse", "diff", "albedo", "color", "colour", "col"],
+    "alpha": ["opacity", "alpha", "transparency", "transparent", "mask", "cutout"],
+    "normal": ["normal", "norm", "nrm", "bump"],
+    "roughness": ["roughness", "rough", "rgh"],
+    "metallic": ["metallic", "metalness", "metal", "mtl"],
+}
+
+thin_surface_keywords = ["alpha", "card", "cutout", "fur", "hair", "leaf", "plane", "shell", "transparent"]
+
+def compact(value):
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+def tokenize(value):
+    name = os.path.splitext(os.path.basename(value or ""))[0].lower()
+    return [token for token in re.split(r"[^a-z0-9]+", name) if token]
+
+def has_keyword(value, keywords):
+    value_tokens = set(tokenize(value))
+    compacted = compact(value)
+    return any(keyword in value_tokens or keyword in compacted for keyword in keywords)
 
 def find_texture_images(root):
     images = []
@@ -228,14 +298,34 @@ def find_texture_images(root):
         for name in files:
             if os.path.splitext(name)[1].lower() in texture_extensions:
                 images.append(os.path.join(current_root, name))
-    return images
+    return sorted(images, key=lambda value: value.lower())
 
-def pick_texture(paths, keywords):
-    for path in paths:
-        lower_name = os.path.basename(path).lower()
-        if any(keyword in lower_name for keyword in keywords):
-            return path
-    return paths[0] if paths else None
+def describe_texture(path):
+    roles = [role for role, keywords in role_keywords.items() if has_keyword(path, keywords)]
+    return {
+        "path": path,
+        "name": os.path.basename(path),
+        "tokens": set(tokenize(path)),
+        "roles": roles,
+    }
+
+def collect_material_usage_tokens():
+    usage = {}
+    for material in bpy.data.materials:
+        usage[material.name] = set(tokenize(material.name))
+
+    for obj in bpy.context.scene.objects:
+        data = getattr(obj, "data", None)
+        materials = getattr(data, "materials", None)
+        if materials is None:
+            continue
+
+        object_tokens = set(tokenize(obj.name))
+        for material in materials:
+            if material:
+                usage.setdefault(material.name, set()).update(object_tokens)
+
+    return usage
 
 def ensure_principled_bsdf(material):
     material.use_nodes = True
@@ -245,8 +335,26 @@ def ensure_principled_bsdf(material):
             return node
     return nodes.new(type="ShaderNodeBsdfPrincipled")
 
-def link_image_to_socket(material, image_path, socket_name):
+def clear_socket_links(material, socket):
+    for link in list(material.node_tree.links):
+        if link.to_socket == socket:
+            material.node_tree.links.remove(link)
+
+def load_image(image_path, color_space):
     if not image_path:
+        return None
+
+    image = bpy.data.images.load(image_path, check_existing=True)
+    try:
+        image.colorspace_settings.name = color_space
+    except Exception:
+        pass
+
+    return image
+
+def link_image_to_socket(material, image_path, socket_name, output_name, color_space):
+    image = load_image(image_path, color_space)
+    if image is None:
         return False
 
     material.use_nodes = True
@@ -258,26 +366,173 @@ def link_image_to_socket(material, image_path, socket_name):
     if socket is None:
         return False
 
-    image = bpy.data.images.load(image_path, check_existing=True)
+    clear_socket_links(material, socket)
     image_node = nodes.new(type="ShaderNodeTexImage")
     image_node.image = image
-    links.new(image_node.outputs["Color"], socket)
+    links.new(image_node.outputs[output_name], socket)
     return True
 
+def link_normal_texture(material, image_path):
+    image = load_image(image_path, "Non-Color")
+    if image is None:
+        return False
+
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    principled = ensure_principled_bsdf(material)
+    socket = principled.inputs.get("Normal")
+
+    if socket is None:
+        return False
+
+    clear_socket_links(material, socket)
+    image_node = nodes.new(type="ShaderNodeTexImage")
+    image_node.image = image
+    normal_node = nodes.new(type="ShaderNodeNormalMap")
+    links.new(image_node.outputs["Color"], normal_node.inputs["Color"])
+    links.new(normal_node.outputs["Normal"], socket)
+    return True
+
+def create_base_alpha_texture(base_color_path, alpha_path):
+    if not base_color_path or not alpha_path:
+        return base_color_path
+
+    base_image = load_image(base_color_path, "sRGB")
+    alpha_image = load_image(alpha_path, "Non-Color")
+
+    if base_image is None or alpha_image is None:
+        return base_color_path
+
+    if base_image.size[0] != alpha_image.size[0] or base_image.size[1] != alpha_image.size[1]:
+        return base_color_path
+
+    width = base_image.size[0]
+    height = base_image.size[1]
+    combined = bpy.data.images.new(
+        "meshfree_" + os.path.splitext(os.path.basename(base_color_path))[0] + "_alpha",
+        width=width,
+        height=height,
+        alpha=True,
+    )
+    base_pixels = list(base_image.pixels[:])
+    alpha_pixels = list(alpha_image.pixels[:])
+    combined_pixels = [0.0] * (width * height * 4)
+
+    for index in range(width * height):
+        base_offset = index * 4
+        combined_pixels[base_offset] = base_pixels[base_offset]
+        combined_pixels[base_offset + 1] = base_pixels[base_offset + 1]
+        combined_pixels[base_offset + 2] = base_pixels[base_offset + 2]
+        combined_pixels[base_offset + 3] = alpha_pixels[base_offset]
+
+    combined.pixels.foreach_set(combined_pixels)
+    combined.filepath_raw = os.path.join(
+        generated_texture_dir,
+        "meshfree_" + os.path.splitext(os.path.basename(base_color_path))[0] + "_alpha.png",
+    )
+    combined.file_format = "PNG"
+    combined.save()
+    return combined.filepath_raw
+
+def choose_texture(texture_records, material_identifiers, role):
+    role_records = [record for record in texture_records if role in record["roles"]]
+
+    if not role_records:
+        if role == "baseColor" and len(texture_records) == 1:
+            return texture_records[0]["path"]
+        return None
+
+    best_record = None
+    best_score = -1
+
+    for record in role_records:
+        token_overlap = len(record["tokens"].intersection(material_identifiers))
+        score = 20 + token_overlap * 5
+
+        if score > best_score:
+            best_record = record
+            best_score = score
+
+    if best_record is None:
+        return None
+
+    return best_record["path"]
+
+def make_material_double_sided(material):
+    material.use_backface_culling = False
+    if hasattr(material, "show_transparent_back"):
+        material.show_transparent_back = True
+
+def should_force_double_sided(material, identifiers, linked_roles):
+    if any(role.startswith("alpha=") for role in linked_roles):
+        return True
+
+    joined = material.name + " " + " ".join(sorted(identifiers))
+    return has_keyword(joined, thin_surface_keywords)
+
 def attach_fallback_textures(texture_paths):
-    base_color_path = pick_texture(texture_paths, ["basecolor", "base_color", "bc", "diffuse", "albedo", "color"])
-    alpha_path = pick_texture(texture_paths, ["opacity", "alpha"])
+    texture_records = [describe_texture(path) for path in texture_paths]
+    material_usage_tokens = collect_material_usage_tokens()
     linked_count = 0
+    material_logs = []
 
     for material in bpy.data.materials:
-        if link_image_to_socket(material, base_color_path, "Base Color"):
-            linked_count += 1
-        if alpha_path and link_image_to_socket(material, alpha_path, "Alpha"):
-            material.blend_method = "BLEND"
-            material.use_screen_refraction = True
-            linked_count += 1
+        identifiers = material_usage_tokens.get(material.name, set()).union(set(tokenize(material.name)))
+        linked_roles = []
+        base_color_path = choose_texture(texture_records, identifiers, "baseColor")
+        alpha_path = choose_texture(texture_records, identifiers, "alpha")
+        alpha_socket_path = alpha_path
+        alpha_output_name = "Color"
+        alpha_color_space = "Non-Color"
 
-    return linked_count
+        if base_color_path and alpha_path:
+            combined_base_color_path = create_base_alpha_texture(base_color_path, alpha_path)
+            if combined_base_color_path != base_color_path:
+                base_color_path = combined_base_color_path
+                alpha_socket_path = combined_base_color_path
+                alpha_output_name = "Alpha"
+                alpha_color_space = "sRGB"
+
+        if link_image_to_socket(material, base_color_path, "Base Color", "Color", "sRGB"):
+            linked_count += 1
+            linked_roles.append("baseColor=" + os.path.basename(base_color_path))
+
+        if alpha_path and link_image_to_socket(material, alpha_socket_path, "Alpha", alpha_output_name, alpha_color_space):
+            material.blend_method = "BLEND"
+            material.alpha_threshold = 0.08
+            linked_count += 1
+            linked_roles.append("alpha=" + os.path.basename(alpha_path))
+
+        normal_path = choose_texture(texture_records, identifiers, "normal")
+        if link_normal_texture(material, normal_path):
+            linked_count += 1
+            linked_roles.append("normal=" + os.path.basename(normal_path))
+
+        roughness_path = choose_texture(texture_records, identifiers, "roughness")
+        if link_image_to_socket(material, roughness_path, "Roughness", "Color", "Non-Color"):
+            linked_count += 1
+            linked_roles.append("roughness=" + os.path.basename(roughness_path))
+
+        metallic_path = choose_texture(texture_records, identifiers, "metallic")
+        if link_image_to_socket(material, metallic_path, "Metallic", "Color", "Non-Color"):
+            linked_count += 1
+            linked_roles.append("metallic=" + os.path.basename(metallic_path))
+
+        if should_force_double_sided(material, identifiers, linked_roles):
+            make_material_double_sided(material)
+            linked_roles.append("doubleSided")
+
+        if linked_roles:
+            material_logs.append(material.name + "[" + ", ".join(linked_roles) + "]")
+
+    return linked_count, material_logs
+
+def print_limited(label, value, limit=1600):
+    text = str(value)
+    if len(text) > limit:
+        text = text[:limit] + "..."
+    print(label + ":", text)
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
@@ -288,21 +543,30 @@ if len(bpy.context.scene.objects) == 0:
     raise RuntimeError("Blender imported the FBX but found no scene objects.")
 
 texture_paths = find_texture_images(search_root)
-linked_texture_count = attach_fallback_textures(texture_paths)
+linked_texture_count, material_logs = attach_fallback_textures(texture_paths)
 print("meshfree_texture_file_count:", len(texture_paths))
+print_limited("meshfree_texture_files", ", ".join(os.path.relpath(path, search_root) for path in texture_paths))
 print("meshfree_linked_texture_count:", linked_texture_count)
+print_limited("meshfree_material_links", "; ".join(material_logs))
 
 bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB")
 `;
 
   fs.writeFileSync(scriptPath, script, "utf8");
-  const output = await runCommand(blenderBinary, ["--background", "--python", scriptPath, "--", absoluteFbxPath, outputGlbPath], workingDirectory);
+  const output = await runCommand(
+    blenderBinary,
+    ["--background", "--python", scriptPath, "--", absoluteFbxPath, outputGlbPath, workingDirectory],
+    workingDirectory,
+  );
 
   if (!fs.existsSync(outputGlbPath)) {
     throw new Error(`Blender did not create the GLB output. ${output.trim().slice(-1000)}`);
   }
 
-  return outputGlbPath;
+  return {
+    diagnostics: extractBlenderDiagnostics(output),
+    outputPath: outputGlbPath,
+  };
 }
 
 function createEmptyBoundingBox(): BoundingBox {
@@ -774,9 +1038,7 @@ async function convertFbxPreview(
         const glbBuffer = fs.readFileSync(convertedGlbPath);
         const glbInspection = inspectGlbBuffer(glbBuffer);
         const score = scoreGlbInspection(glbInspection);
-        conversionSummaries.push(
-          `${attempt.description}: ${glbInspection.imageCount} image(s), ${glbInspection.textureCount} texture(s), ${glbInspection.materialTextureCount} material texture reference(s)`,
-        );
+        conversionSummaries.push(`${attempt.description}: ${formatGlbInspection(glbInspection)}`);
 
         if (!bestConversion || score > bestConversion.score) {
           bestConversion = {
@@ -792,17 +1054,19 @@ async function convertFbxPreview(
       }
     }
 
-    if (!bestConversion || bestConversion.score === 0) {
+    if (shouldTryBlenderFallback(bestConversion)) {
       const blenderOutputGlbPath = path.join(extractionDirectory, `${outputBaseName}-blender.glb`);
 
       try {
-        const convertedGlbPath = await convertFbxWithBlender(absoluteFbxPath, blenderOutputGlbPath, extractionDirectory);
-        const glbBuffer = fs.readFileSync(convertedGlbPath);
+        const blenderConversion = await convertFbxWithBlender(absoluteFbxPath, blenderOutputGlbPath, extractionDirectory);
+        const glbBuffer = fs.readFileSync(blenderConversion.outputPath);
         const glbInspection = inspectGlbBuffer(glbBuffer);
         const score = scoreGlbInspection(glbInspection);
 
         conversionSummaries.push(
-          `Blender fallback: ${glbInspection.imageCount} image(s), ${glbInspection.textureCount} texture(s), ${glbInspection.materialTextureCount} material texture reference(s)`,
+          `Blender fallback: ${formatGlbInspection(glbInspection)}${
+            blenderConversion.diagnostics ? `. Diagnostics: ${blenderConversion.diagnostics}` : ""
+          }`,
         );
 
         if (!bestConversion || score > bestConversion.score) {
@@ -827,7 +1091,7 @@ async function convertFbxPreview(
       previewModelPath: storePreviewBuffer(bestConversion.glbBuffer, `${inspection.candidateEntryName}.glb`),
       sourceFormat: "fbx",
       previewConversionStatus: "success",
-      previewConversionMessage: `Converted FBX preview to GLB with ${bestConversion.attemptDescription}. Selected result detected ${bestConversion.inspection.imageCount} image(s), ${bestConversion.inspection.textureCount} texture(s), and ${bestConversion.inspection.materialTextureCount} material texture reference(s). Attempts: ${conversionSummaries.join("; ")}.`,
+      previewConversionMessage: `Converted FBX preview to GLB with ${bestConversion.attemptDescription}. Selected result detected ${formatGlbInspection(bestConversion.inspection)}. Attempts: ${conversionSummaries.join("; ")}.`,
       hasMissingTextures: false,
     };
   } catch (error) {
