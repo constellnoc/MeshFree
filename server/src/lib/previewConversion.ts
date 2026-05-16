@@ -520,15 +520,22 @@ def should_force_double_sided(material, identifiers, linked_roles):
 
 def classify_material(material, identifiers):
     joined = material.name + " " + " ".join(sorted(identifiers))
+    material_name = material.name
 
-    if has_keyword(joined, ["stroke", "outline", "line", "dots"]):
+    if has_keyword(material_name, ["stroke", "outline", "line", "dots"]):
         return "stroke"
 
-    if has_keyword(joined, ["flame", "glow", "glass", "smoke", "effect"]):
+    if has_keyword(material_name, ["body", "cat", "cap", "mushroom", "stem", "surface"]):
+        return "body"
+
+    if has_keyword(material_name, ["flame", "glow", "glass", "smoke", "effect"]):
         return "transparentEffect"
 
     if has_keyword(joined, ["body", "cat", "cap", "mushroom", "stem", "surface"]):
         return "body"
+
+    if has_keyword(joined, ["flame", "glow", "glass", "smoke", "effect"]):
+        return "transparentEffect"
 
     return "unknown"
 
