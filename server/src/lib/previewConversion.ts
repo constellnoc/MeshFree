@@ -518,6 +518,20 @@ def should_force_double_sided(material, identifiers, linked_roles):
     joined = material.name + " " + " ".join(sorted(identifiers))
     return has_keyword(joined, thin_surface_keywords)
 
+def classify_material(material, identifiers):
+    joined = material.name + " " + " ".join(sorted(identifiers))
+
+    if has_keyword(joined, ["stroke", "outline", "line", "dots"]):
+        return "stroke"
+
+    if has_keyword(joined, ["flame", "glow", "glass", "smoke", "effect"]):
+        return "transparentEffect"
+
+    if has_keyword(joined, ["body", "cat", "cap", "mushroom", "stem", "surface"]):
+        return "body"
+
+    return "unknown"
+
 def attach_fallback_textures(texture_paths):
     texture_records = [describe_texture(path) for path in texture_paths]
     material_usage_tokens = collect_material_usage_tokens()
@@ -526,14 +540,17 @@ def attach_fallback_textures(texture_paths):
 
     for material in bpy.data.materials:
         identifiers = material_usage_tokens.get(material.name, set()).union(set(tokenize(material.name)))
+        material_category = classify_material(material, identifiers)
         linked_roles = []
         base_color_path = choose_texture(texture_records, identifiers, "baseColor")
         alpha_path = choose_texture(texture_records, identifiers, "alpha")
         alpha_socket_path = alpha_path
         alpha_output_name = "Color"
         alpha_color_space = "Non-Color"
+        should_link_base_color = material_category in {"body"}
+        should_link_alpha = material_category in {"body"}
 
-        if should_blend_alpha_textures and base_color_path and alpha_path:
+        if should_blend_alpha_textures and should_link_alpha and base_color_path and alpha_path:
             combined_base_color_path = create_base_alpha_texture(base_color_path, alpha_path)
             if combined_base_color_path != base_color_path:
                 base_color_path = combined_base_color_path
@@ -541,11 +558,11 @@ def attach_fallback_textures(texture_paths):
                 alpha_output_name = "Alpha"
                 alpha_color_space = "sRGB"
 
-        if link_image_to_socket(material, base_color_path, "Base Color", "Color", "sRGB"):
+        if should_link_base_color and link_image_to_socket(material, base_color_path, "Base Color", "Color", "sRGB"):
             linked_count += 1
             linked_roles.append("baseColor=" + os.path.basename(base_color_path))
 
-        if alpha_path and link_image_to_socket(material, alpha_socket_path, "Alpha", alpha_output_name, alpha_color_space):
+        if should_link_alpha and alpha_path and link_image_to_socket(material, alpha_socket_path, "Alpha", alpha_output_name, alpha_color_space):
             material.blend_method = alpha_mode
             material.alpha_threshold = 0.45
             linked_count += 1
@@ -570,8 +587,13 @@ def attach_fallback_textures(texture_paths):
             make_material_double_sided(material)
             linked_roles.append("doubleSided")
 
+        if not should_link_base_color and base_color_path:
+            linked_roles.append("skippedBaseColor:" + material_category)
+        if not should_link_alpha and alpha_path:
+            linked_roles.append("skippedAlpha:" + material_category)
+
         if linked_roles:
-            material_logs.append(material.name + "[" + ", ".join(linked_roles) + "]")
+            material_logs.append(material.name + "<" + material_category + ">[" + ", ".join(linked_roles) + "]")
 
     return linked_count, material_logs
 
