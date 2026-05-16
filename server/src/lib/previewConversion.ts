@@ -299,6 +299,9 @@ texture_extensions = {".bmp", ".jpeg", ".jpg", ".png", ".tga", ".tif", ".tiff", 
 generated_texture_dir = os.path.dirname(output_path)
 combined_texture_cache = {}
 should_blend_alpha_textures = os.environ.get("PREVIEW_BLEND_ALPHA_TEXTURES") == "1"
+alpha_mode = os.environ.get("PREVIEW_ALPHA_MODE", "CLIP").upper()
+if alpha_mode not in {"BLEND", "CLIP", "HASHED"}:
+    alpha_mode = "CLIP"
 
 role_keywords = {
     "baseColor": ["basecolor", "base", "bc", "diffuse", "diff", "albedo", "color", "colour", "col"],
@@ -543,10 +546,10 @@ def attach_fallback_textures(texture_paths):
             linked_roles.append("baseColor=" + os.path.basename(base_color_path))
 
         if alpha_path and link_image_to_socket(material, alpha_socket_path, "Alpha", alpha_output_name, alpha_color_space):
-            material.blend_method = "BLEND"
-            material.alpha_threshold = 0.08
+            material.blend_method = alpha_mode
+            material.alpha_threshold = 0.45
             linked_count += 1
-            linked_roles.append("alpha=" + os.path.basename(alpha_path))
+            linked_roles.append("alpha=" + os.path.basename(alpha_path) + ":" + alpha_mode)
 
         normal_path = choose_texture(texture_records, identifiers, "normal")
         if link_normal_texture(material, normal_path):
