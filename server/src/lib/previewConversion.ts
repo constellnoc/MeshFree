@@ -203,13 +203,37 @@ function formatAttemptError(error: unknown) {
   return message ? message.slice(0, 2000) : "unknown error";
 }
 
-function runCommand(command: string, args: string[], workingDirectory: string): Promise<string> {
+const DEFAULT_COMMAND_TIMEOUT_MS = 120_000;
+const BLENDER_CONVERSION_TIMEOUT_MS = Number.parseInt(process.env.PREVIEW_BLENDER_TIMEOUT_MS ?? "", 10) || DEFAULT_COMMAND_TIMEOUT_MS;
+
+function runCommand(command: string, args: string[], workingDirectory: string, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: workingDirectory,
       windowsHide: true,
     });
     let output = "";
+    let isSettled = false;
+
+    const timeout = setTimeout(() => {
+      if (isSettled) {
+        return;
+      }
+
+      isSettled = true;
+      child.kill("SIGKILL");
+      reject(new Error(`${command} exceeded ${timeoutMs}ms and was terminated. ${output.trim().slice(-1000)}`));
+    }, timeoutMs);
+
+    function settle(callback: () => void) {
+      if (isSettled) {
+        return;
+      }
+
+      isSettled = true;
+      clearTimeout(timeout);
+      callback();
+    }
 
     child.stdout.on("data", (data: Buffer) => {
       output += data.toString();
@@ -217,14 +241,18 @@ function runCommand(command: string, args: string[], workingDirectory: string): 
     child.stderr.on("data", (data: Buffer) => {
       output += data.toString();
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      settle(() => reject(error));
+    });
     child.on("close", (code) => {
-      if (code === 0) {
-        resolve(output);
-        return;
-      }
+      settle(() => {
+        if (code === 0) {
+          resolve(output);
+          return;
+        }
 
-      reject(new Error(output.trim() || `${command} exited with status ${code}.`));
+        reject(new Error(output.trim() || `${command} exited with status ${code}.`));
+      });
     });
   });
 }
@@ -269,6 +297,7 @@ output_path = args[1]
 search_root = args[2]
 texture_extensions = {".bmp", ".jpeg", ".jpg", ".png", ".tga", ".tif", ".tiff", ".webp"}
 generated_texture_dir = os.path.dirname(output_path)
+combined_texture_cache = {}
 
 role_keywords = {
     "baseColor": ["basecolor", "base", "bc", "diffuse", "diff", "albedo", "color", "colour", "col"],
@@ -398,6 +427,10 @@ def create_base_alpha_texture(base_color_path, alpha_path):
     if not base_color_path or not alpha_path:
         return base_color_path
 
+    cache_key = base_color_path + "|" + alpha_path
+    if cache_key in combined_texture_cache:
+        return combined_texture_cache[cache_key]
+
     base_image = load_image(base_color_path, "sRGB")
     alpha_image = load_image(alpha_path, "Non-Color")
 
@@ -407,8 +440,20 @@ def create_base_alpha_texture(base_color_path, alpha_path):
     if base_image.size[0] != alpha_image.size[0] or base_image.size[1] != alpha_image.size[1]:
         return base_color_path
 
+    pixel_count = base_image.size[0] * base_image.size[1]
+    if pixel_count > 16777216:
+        print("meshfree_alpha_composite_skipped: image too large " + os.path.basename(base_color_path))
+        return base_color_path
+
     width = base_image.size[0]
     height = base_image.size[1]
+    output_name = "meshfree_" + os.path.splitext(os.path.basename(base_color_path))[0] + "_alpha.png"
+    output_path = os.path.join(generated_texture_dir, output_name)
+
+    if os.path.exists(output_path):
+        combined_texture_cache[cache_key] = output_path
+        return output_path
+
     combined = bpy.data.images.new(
         "meshfree_" + os.path.splitext(os.path.basename(base_color_path))[0] + "_alpha",
         width=width,
@@ -427,13 +472,11 @@ def create_base_alpha_texture(base_color_path, alpha_path):
         combined_pixels[base_offset + 3] = alpha_pixels[base_offset]
 
     combined.pixels.foreach_set(combined_pixels)
-    combined.filepath_raw = os.path.join(
-        generated_texture_dir,
-        "meshfree_" + os.path.splitext(os.path.basename(base_color_path))[0] + "_alpha.png",
-    )
+    combined.filepath_raw = output_path
     combined.file_format = "PNG"
     combined.save()
-    return combined.filepath_raw
+    combined_texture_cache[cache_key] = output_path
+    return output_path
 
 def choose_texture(texture_records, material_identifiers, role):
     role_records = [record for record in texture_records if role in record["roles"]]
@@ -557,6 +600,7 @@ bpy.ops.export_scene.gltf(filepath=output_path, export_format="GLB")
     blenderBinary,
     ["--background", "--python", scriptPath, "--", absoluteFbxPath, outputGlbPath, workingDirectory],
     workingDirectory,
+    BLENDER_CONVERSION_TIMEOUT_MS,
   );
 
   if (!fs.existsSync(outputGlbPath)) {
